@@ -1,0 +1,26 @@
+
+# PyCharm settings
+.idea/
+*.iml
+
+# Python virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Climbing videos
+*.MOV
+*.mov
+
+# MediaPipe model
+*.task
+
+# Generated metrics
+metrics.json
+
+# OS files
+.DS_Store
+Thumbs.db

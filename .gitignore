@@ -24,3 +24,6 @@ metrics.json
 # OS files
 .DS_Store
 Thumbs.db
+
+# python env
+.env

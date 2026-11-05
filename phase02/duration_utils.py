@@ -39,7 +39,7 @@ def trackDeepBendDuration(
 
             if current_timestamp - missing_start > tolerance:
                 deep_bent_intervals.append({
-                    "start": missing_start,
+                    "start": deep_bent_start,
                     "end": missing_start,
                     "duration": missing_start - deep_bent_start,
                     "status": "interrupted"

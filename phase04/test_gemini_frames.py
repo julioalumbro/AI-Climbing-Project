@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import argparse
 
 from dotenv import load_dotenv
 from google import genai
@@ -20,21 +21,83 @@ api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     raise ValueError("GEMINI API key was not found in .env")
 
+
+parser = argparse.ArgumentParser(
+    description="Generate structured Gemini movement analysis."
+)
+
+parser.add_argument(
+    "--generate",
+    action="store_true",
+    help="Explicitly authorize a Gemini API request."
+)
+
+
+parser.add_argument(
+    "--video",
+    default="climbingTestDeepBentElbow.mov"
+)
+
+parser.add_argument(
+    "--movement",
+    default="left_release_return"
+)
+
+parser.add_argument(
+    "--target-foot",
+    choices=["left", "right"],
+    default="left"
+)
+
+parser.add_argument(
+    "--frames",
+    type=int,
+    nargs=3,
+    default=[332, 358, 373]
+)
+
+parser.add_argument(
+    "--output",
+    type=Path,
+    default=BASE_DIR / "gemini_structured_analysis_v2.json"
+)
+
+
+args = parser.parse_args()
+
+if not args.generate:
+    print(
+        "Gemini generation is disabled by default.\n"
+        "Use --generate to explicitly authorize an API request."
+    )
+    raise SystemExit(0)
+
+if args.output.exists():
+    raise FileExistsError(
+        f"Output already exists: {args.output}\n"
+        "Choose a different --output path to preserve existing analyses."
+    )
+
+
+
 client = genai.Client(api_key=api_key)
 
 FRAME_DIR = (
     BASE_DIR
     / "vlm_frames"
-    / "climbingTestDeepBentElbow_left_release_return"
+    / f"{Path(args.video).stem}_{args.target_foot}_{args.movement}"
 )
 
-frame_numbers = [332, 358, 373]
+frame_numbers = args.frames
 
-prompt = """
+# these instructions matter bc I want to make sure Gemini and MediaPipe
+# evaluat the same movement over the same interval
+prompt = f"""
 Analyze these three chronological frames from an indoor bouldering video.
 
-Movement type: left_release_return
-Target foot: anatomical LEFT foot, not image-left.
+Movement type: {args.movement}
+Target foot: anatomical {args.target_foot.upper()} foot,
+not image-left or image-right.
 
 For each provided frame:
 1. Describe the target foot's visible position.
@@ -50,6 +113,44 @@ Use "unclear" when contact cannot be determined.
 
 Return one observation for each provided frame.
 Use the original frame numbers supplied with the images.
+
+
+STRUCTURED MOVEMENT CLASSIFICATION
+
+Analyze the movement between the FIRST and LAST supplied frames.
+
+Use the climber's anatomical left and right when referring
+to specific arms or legs.
+
+For hip_horizontal_direction:
+- image-left: the hip midpoint moves toward the left side
+  of the image.
+- image-right: the hip midpoint moves toward the right side
+  of the image.
+- minimal_horizontal_change: little net horizontal movement.
+- unclear: insufficient visual evidence.
+
+For target_knee_movement:
+- flexion: the target knee becomes more bent.
+- extension: the target knee becomes straighter.
+- minimal_angle_change: little visible change in knee angle.
+- unclear: insufficient visual evidence.
+
+For left_elbow_movement and right_elbow_movement:
+- flexion: the elbow becomes more bent.
+- extension: the elbow becomes straighter.
+- minimal_angle_change: little visible change in elbow angle.
+- unclear: insufficient visual evidence.
+
+IMPORTANT:
+- Compare the same climber across the supplied frames.
+- Do not confuse anatomical left/right with image left/right.
+- Base classifications only on visible movement.
+- Do not infer joint movement from assumed weight distribution.
+- If a joint is occluded or difficult to assess, use "unclear".
+- Do not invent numerical angles or displacement measurements.
+- Report uncertainties rather than guessing.
+
 """
 
 contents = [prompt]
@@ -91,7 +192,18 @@ except errors.ServerError as error:
     raise SystemExit(1)
 
 except errors.ClientError as error:
-    print(f"Gemini API client error: {error}")
+    if error.code == 402:
+        print(
+            "Gemini API prepaid credits are depleted. "
+            "Check your Google AI Studio billing settings."
+        )
+    elif error.code == 429:
+        print(
+            "Gemini API rate limit or quota exceeded."
+        )
+    else:
+        print(f"Gemini API client error: {error}")
+
     raise SystemExit(1)
 
 print("\nFinish reason:")
@@ -106,6 +218,37 @@ if analysis is None:
         "Gemini did not return a valid structured response."
     )
 
+# NEW: Validate Gemini V2 structured classifications
+print("\nGemini V2 Structured Classifications:")
+
+print("Hip direction:", analysis.hip_horizontal_direction)
+print("Target knee:", analysis.target_knee_movement)
+print("Left elbow:", analysis.left_elbow_movement)
+print("Right elbow:", analysis.right_elbow_movement)
+
+required_fields = {
+    "hip_horizontal_direction": analysis.hip_horizontal_direction,
+    "target_knee_movement": analysis.target_knee_movement,
+    "left_elbow_movement": analysis.left_elbow_movement,
+    "right_elbow_movement": analysis.right_elbow_movement
+}
+
+missing_fields = [
+    name
+    for name, value in required_fields.items()
+    if value is None
+]
+
+if missing_fields:
+    raise ValueError(
+        f"Gemini V2 omitted required movement classifications: "
+        f"{missing_fields}"
+    )
+
+print("All four structured fields are present!")
+# Continue with your existing validation
+# and JSON-saving code below.
+
 
 # Verify that Gemini returned the requested frames
 returned_frames = [frame.frame for frame in analysis.frames]
@@ -118,9 +261,14 @@ if returned_frames != frame_numbers:
     )
 
 # Verify that Gemini analyzed the correct foot
-if analysis.target_foot != "left":
+if analysis.target_foot != args.target_foot:
     raise ValueError(
         f"Incorrect target foot: {analysis.target_foot}"
+    )
+
+if analysis.movement_type != args.movement:
+    raise ValueError(
+        f"Incorrect movement type: {analysis.movement_type}"
     )
 
 print("Structured analysis validation passed!")
@@ -129,14 +277,16 @@ print("Structured analysis validation passed!")
 print(analysis.model_dump_json(indent=4))
 
 # Save structured Gemini analysis
-output_path = BASE_DIR / "gemini_structured_analysis.json"
+output_path = args.output
 
+# meta data dictionary
 analysis_record = {
-    "video_file": "climbingTestDeepBentElbow.mov",
-    "movement_type": "left_release_return",
+    "video_file": args.video,
+    "movement_type": args.movement,
     "analyzed_frames": frame_numbers,
     "model": "gemini-3.8-flash",
     "analysis_type": "multi_frame",
+    "schema_version": 2,
     "timestamp_utc": datetime.now(timezone.utc).isoformat(),
     "finish_reason": response.candidates[0].finish_reason.value,
     "token_usage": {
@@ -148,7 +298,9 @@ analysis_record = {
     "analysis": analysis.model_dump(mode="json")
 }
 
-with open(output_path, "w", encoding="utf-8") as file:
+
+with open(output_path, "x", encoding="utf-8") as file:
     json.dump(analysis_record, file, indent=4, ensure_ascii=False)
+
 
 print(f"\nSaved analysis to: {output_path}")

@@ -28,16 +28,16 @@ def calculateAngle(A, B, C):
     # Step 5: Return the angle in degrees
     return math.degrees(angle)
 
+if __name__ == "__main__":
+    # test cases for common angles
+    print(calculateAngle((0, 1), (0, 0), (1, 0)))
+    # Expected: 90.0
 
-# test cases for common angles
-print(calculateAngle((0, 1), (0, 0), (1, 0)))
-# Expected: 90.0
+    print(calculateAngle((-1, 0), (0, 0), (1, 0)))
+    # Expected: 180.0
 
-print(calculateAngle((-1, 0), (0, 0), (1, 0)))
-# Expected: 180.0
-
-print(calculateAngle((1, 0), (0, 0), (1, 1)))
-# Expected: 45.0
+    print(calculateAngle((1, 0), (0, 0), (1, 1)))
+    # Expected: 45.0
 
 # classifies whether an elbow is partially bent, straight, or deeply bet
 def classifyElbowPosition(angle):

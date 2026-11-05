@@ -95,13 +95,13 @@ def analyze_uploaded_video(upload_id: str) -> dict:
     metrics = process_climbing_video(
         video_path=video_path,
         display_video=False,
-        annotated_output_path=raw_video_path
+        annotated_output_path=annotated_video_path
     )
 
     processing_time = time.perf_counter() - processing_start
 
     print(
-        f"[Performance] MediaPipe + OpenCV: "
+        f"[Performance] MediaPipe + FFmpeg: "
         f"{processing_time:.2f} seconds"
     )
 
@@ -109,24 +109,6 @@ def analyze_uploaded_video(upload_id: str) -> dict:
     # Generate evidence-based coaching feedback
     feedback = generate_feedback(metrics)
 
-    conversion_start = time.perf_counter()
-    # Step 5: Convert video to H.264
-    try:
-        convert_to_h264(
-            input_path=raw_video_path,
-            output_path=annotated_video_path
-        )
-
-        conversion_time = time.perf_counter() - conversion_start
-        print(
-            f"[Performance] FFmpeg conversion: "
-            f"{conversion_time:.2f} seconds"
-        )
-
-    finally:
-        # Delete the temporary OpenCV video after conversion
-        # or if conversion fails
-        raw_video_path.unlink(missing_ok=True)
 
     # Step 6: Save JSON metrics
     with metrics_path.open("w", encoding="utf-8") as file:

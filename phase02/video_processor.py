@@ -18,7 +18,7 @@ from phase02.duration_utils import trackDeepBendDuration, summarizeDeepBendInter
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_PATH = BASE_DIR.parent / "phase01-opencv_videoloading" / "pose_landmarker_full.task"
-
+TARGET_INFERENCE_FPS = 30.0
 BaseOptions = mp.tasks.BaseOptions
 PoseLandmarker = mp.tasks.vision.PoseLandmarker
 PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
@@ -116,8 +116,12 @@ def process_climbing_video(
             fps = 30.0
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        print(f"[Video] Resolution: {width}x{height}")
-        print(f"[Video] FPS: {fps:.2f}")
+
+        # Inference sampling
+        inference_interval = max(1, round(fps / TARGET_INFERENCE_FPS))
+        last_landmarks = None
+
+        print(f"[Performance] Inference interval: every {inference_interval} frame(s)")
         if width <= 0 or height <= 0:
             raise RuntimeError("Video dimensions are invalid")
 
@@ -149,13 +153,32 @@ def process_climbing_video(
                 current_timestamp = frame_number / fps
                 timestamp_ms = int(frame_number * 1000 / fps)
                 last_processed_timestamp = current_timestamp
-                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
-                inference_start = time.perf_counter()
-                result = landmarker.detect_for_video(mp_image, timestamp_ms)
-                inference_time = time.perf_counter() - inference_start
-                total_inference_time += inference_time
-                inference_count += 1
+
+                # Only run MediaPipe on selected frames
+                should_infer = frame_number % inference_interval == 0
+
+                result = None
+
+                if should_infer:
+                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    mp_image = mp.Image(
+                        image_format=mp.ImageFormat.SRGB,
+                        data=rgb_frame
+                    )
+
+                    inference_start = time.perf_counter()
+                    result = landmarker.detect_for_video(mp_image, timestamp_ms)
+                    inference_time = time.perf_counter() - inference_start
+
+                    total_inference_time += inference_time
+                    inference_count += 1
+
+                    last_landmarks = (
+                        result.pose_landmarks[0]
+                        if result.pose_landmarks
+                        else None
+                    )
+
                 hip_x = hip_y = hip_velocity_y = None
                 left_arm_valid = right_arm_valid = False
                 left_elbow_angle = right_elbow_angle = None
@@ -166,8 +189,8 @@ def process_climbing_video(
                 left_foot_dx = left_foot_dy = None
                 right_foot_dx = right_foot_dy = None
 
-                if result.pose_landmarks:
-                    landmarks = result.pose_landmarks[0]
+                if should_infer and last_landmarks is not None:
+                    landmarks = last_landmarks
                     left_shoulder, right_shoulder = landmarks[11], landmarks[12]
                     left_elbow, right_elbow = landmarks[13], landmarks[14]
                     left_wrist, right_wrist = landmarks[15], landmarks[16]
@@ -223,31 +246,46 @@ def process_climbing_video(
                     if writer is not None or display_video:
                         _draw_skeleton(frame, landmarks, width, height)
 
-                (left_foot_vx, left_foot_vy,
-                 previous_left_foot_dx, previous_left_foot_dy,
-                 previous_left_foot_timestamp) = calculateFootVelocity(
-                    left_foot_dx, left_foot_dy, current_timestamp,
-                    previous_left_foot_dx, previous_left_foot_dy,
-                    previous_left_foot_timestamp,
-                )
-                (right_foot_vx, right_foot_vy,
-                 previous_right_foot_dx, previous_right_foot_dy,
-                 previous_right_foot_timestamp) = calculateFootVelocity(
-                    right_foot_dx, right_foot_dy, current_timestamp,
-                    previous_right_foot_dx, previous_right_foot_dy,
-                    previous_right_foot_timestamp,
-                )
-                left_foot_speed = calculateFootSpeed(left_foot_vx, left_foot_vy)
-                right_foot_speed = calculateFootSpeed(right_foot_vx, right_foot_vy)
+                # Draw the most recently detected skeleton on skipped frames
+                if (
+                        not should_infer
+                        and last_landmarks is not None
+                        and (writer is not None or display_video)
+                ):
+                    _draw_skeleton(frame, last_landmarks, width, height)
 
-                left_deep_bent_start, left_missing_start = trackDeepBendDuration(
-                    left_elbow_position, current_timestamp,
-                    left_deep_bent_start, left_missing_start, left_deep_bent_intervals,
-                )
-                right_deep_bent_start, right_missing_start = trackDeepBendDuration(
-                    right_elbow_position, current_timestamp,
-                    right_deep_bent_start, right_missing_start, right_deep_bent_intervals,
-                )
+                left_foot_vx = left_foot_vy = None
+                right_foot_vx = right_foot_vy = None
+                if should_infer:
+                    # Existing foot velocity and speed calculations
+                    (left_foot_vx, left_foot_vy,
+                     previous_left_foot_dx, previous_left_foot_dy,
+                     previous_left_foot_timestamp) = calculateFootVelocity(
+                        left_foot_dx, left_foot_dy, current_timestamp,
+                        previous_left_foot_dx, previous_left_foot_dy,
+                        previous_left_foot_timestamp,
+                    )
+                    (right_foot_vx, right_foot_vy,
+                     previous_right_foot_dx, previous_right_foot_dy,
+                     previous_right_foot_timestamp) = calculateFootVelocity(
+                        right_foot_dx, right_foot_dy, current_timestamp,
+                        previous_right_foot_dx, previous_right_foot_dy,
+                        previous_right_foot_timestamp,
+                    )
+                    left_foot_speed = calculateFootSpeed(left_foot_vx, left_foot_vy)
+                    right_foot_speed = calculateFootSpeed(right_foot_vx, right_foot_vy)
+
+                # Only update elbow-bend tracking on analyzed frames
+                if should_infer:
+                    left_deep_bent_start, left_missing_start = trackDeepBendDuration(
+                        left_elbow_position, current_timestamp,
+                        left_deep_bent_start, left_missing_start, left_deep_bent_intervals,
+                    )
+
+                    right_deep_bent_start, right_missing_start = trackDeepBendDuration(
+                        right_elbow_position, current_timestamp,
+                        right_deep_bent_start, right_missing_start, right_deep_bent_intervals,
+                    )
 
                 metrics_log.append({
                     "frame": frame_number,
@@ -277,6 +315,7 @@ def process_climbing_video(
                     "right_foot_vy": right_foot_vy,
                     "left_foot_speed": left_foot_speed,
                     "right_foot_speed": right_foot_speed,
+                    "inference_performed": should_infer
                 })
 
                 if writer is not None:
@@ -295,6 +334,7 @@ def process_climbing_video(
                         frame_number += 1
                         break
                 frame_number += 1
+
 
             if inference_count > 0:
                 average_inference_time = total_inference_time / inference_count

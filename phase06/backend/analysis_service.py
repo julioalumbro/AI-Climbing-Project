@@ -1,13 +1,14 @@
 
 import json
-import shutil
-import subprocess
 import time
 from pathlib import Path
 from uuid import UUID
 
 from phase02.video_processor import process_climbing_video
 from phase06.backend.feedback_service import generate_feedback
+from phase06.backend.gemini_video_service import analyze_climbing_video
+from phase06.backend.movement_matching_service import match_gemini_movements
+from phase06.backend.hybrid_feedback_service import generate_hybrid_feedback
 
 # Backend directories
 BACKEND_DIR = Path(__file__).resolve().parent
@@ -15,39 +16,6 @@ UPLOAD_DIR = BACKEND_DIR / "uploads"
 RESULTS_DIR = BACKEND_DIR / "results"
 
 ALLOWED_EXTENSIONS = (".mp4", ".mov", ".webm")
-
-
-def convert_to_h264(input_path: Path, output_path: Path) -> None:
-    """
-    Convert an OpenCV-generated MP4 to browser-compatible H.264.
-    """
-
-    # Check whether FFmpeg is installed
-    ffmpeg_path = shutil.which("ffmpeg")
-
-    if ffmpeg_path is None:
-        raise RuntimeError(
-            "FFmpeg was not found. Install FFmpeg and restart PyCharm."
-        )
-
-    command = [
-        ffmpeg_path,
-        "-y",
-        "-i", str(input_path),
-        "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-pix_fmt", "yuv420p",
-        "-movflags", "+faststart",
-        str(output_path)
-    ]
-
-    # Run FFmpeg and wait for conversion to finish
-    subprocess.run(
-        command,
-        check=True,
-        capture_output=True,
-        text=True
-    )
 
 
 def analyze_uploaded_video(upload_id: str) -> dict:
@@ -109,12 +77,57 @@ def analyze_uploaded_video(upload_id: str) -> dict:
     # Generate evidence-based coaching feedback
     feedback = generate_feedback(metrics)
 
+    # Step 5: Run Gemini + MediaPipe hybrid analysis
+    hybrid_feedback = []
+    hybrid_status = "completed"
+    hybrid_error = None
+
+    try:
+        # Analyze the original uploaded video with Gemini.
+        gemini_result = analyze_climbing_video(video_path)
+
+        # Match Gemini movements with MediaPipe measurements.
+        matched_movements = match_gemini_movements(
+            gemini_result,
+            metrics
+        )
+
+        # Generate evidence-aware hybrid feedback.
+        hybrid_feedback = generate_hybrid_feedback(
+            matched_movements
+        )
+
+        # Save Gemini observations for future review.
+        gemini_path = result_dir / "gemini_movements.json"
+
+        with gemini_path.open("w", encoding="utf-8") as file:
+            json.dump(gemini_result, file, indent=4)
+
+        # Save hybrid feedback.
+        hybrid_path = result_dir / "hybrid_feedback.json"
+
+        with hybrid_path.open("w", encoding="utf-8") as file:
+            json.dump(hybrid_feedback, file, indent=4)
+
+        print(
+            f"[Hybrid Analysis] Generated feedback for "
+            f"{len(hybrid_feedback)} movements."
+        )
+
+    except Exception as exc:
+        hybrid_status = "failed"
+        hybrid_error = str(exc)
+
+        print(f"[Hybrid Analysis] Failed: {exc}")
+
+
 
     # Step 6: Save JSON metrics
     with metrics_path.open("w", encoding="utf-8") as file:
         json.dump(metrics, file, indent=4)
 
     # Step 7: Return analysis response
+
     return {
         "upload_id": validated_id,
         "status": "completed",
@@ -123,5 +136,9 @@ def analyze_uploaded_video(upload_id: str) -> dict:
         "right_arm_summary": metrics["right_arm"]["summary"],
         "metrics_url": f"/api/results/{validated_id}/metrics",
         "annotated_video_url": f"/api/results/{validated_id}/video",
-        "feedback": feedback
+        "feedback": feedback,
+        "hybrid_status": hybrid_status,
+        "hybrid_error": hybrid_error,
+        "hybrid_feedback": hybrid_feedback
     }
+

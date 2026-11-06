@@ -8,6 +8,24 @@ export interface UploadResult {
   status: string;
 }
 
+
+export type HybridMetricEvaluation = {
+  metric: string;
+  status: string;
+  message: string;
+};
+
+export type HybridFeedbackItem = {
+  movement_type: string;
+  start_seconds: number;
+  end_seconds: number;
+  observation: string;
+  gemini_confidence: string;
+  evidence_status: string;
+  metric_evaluations: HybridMetricEvaluation[];
+  feedback: string;
+};
+
 export interface AnalysisResult {
   upload_id: string;
   status: string;
@@ -17,6 +35,9 @@ export interface AnalysisResult {
   metrics_url: string;
   annotated_video_url: string;
   feedback: CoachingFeedback[];
+  hybrid_status?: string;
+  hybrid_error?: string | null;
+  hybrid_feedback?: HybridFeedbackItem[];
 }
 
 export interface CoachingFeedback {

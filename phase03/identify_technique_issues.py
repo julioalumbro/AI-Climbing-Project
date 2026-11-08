@@ -7,7 +7,7 @@ COORDINATION_FILE = BASE_DIR / "coordination_analysis.json"
 
 # directly maps the original climbing video to the detected movement
 # eventually gonna extract short video clips containing detected movements and provide these clips alongside
-# our coach questions to the VLM.
+# our coach questions to the vlm.
 SOURCE_VIDEO_MAP = {
     "metrics.json": "climbingTestDeepBentElbow.mov",
     "metrics_tension.json": "climbingTestTension.mov"
@@ -15,6 +15,7 @@ SOURCE_VIDEO_MAP = {
 
 # creating movement observation
 
+# load the coordination analysis results used to assess technique.
 def loadCoordinationAnalyses(filepath):
     with open(filepath, "r", encoding="utf-8") as file:
         data = json.load(file)
@@ -22,6 +23,7 @@ def loadCoordinationAnalyses(filepath):
     return data["coordination_analyses"]
 
 
+# classify foot-speed changes while accounting for missing measurements.
 def identifyFootMovementObservation(movement):
     stability = movement.get("foot_stability")
 
@@ -50,6 +52,7 @@ def identifyFootMovementObservation(movement):
         "speed_change": speed_change
     }
 
+# interpret the measured elbow and hip coordination pattern.
 def identifyUpperBodyObservation(movement):
     coordination = movement.get("elbow_hip_coordination")
 
@@ -84,6 +87,7 @@ def identifyUpperBodyObservation(movement):
     }
 
 # start of producing potential technique issues + coaching suggestions
+# map foot movement observations to cautious coaching suggestions.
 def generateFootCoachingFeedback(foot_observation):
     observation = foot_observation["observation"]
 
@@ -118,6 +122,7 @@ def generateFootCoachingFeedback(foot_observation):
             )
         }
 
+# map upper-body patterns to potential coaching considerations.
 def generateUpperBodyCoachingFeedback(upper_body_observation):
     observation = upper_body_observation["observation"]
     if observation == "bilateral_elbow_flexion_with_upward_hips":
@@ -151,6 +156,7 @@ def generateUpperBodyCoachingFeedback(upper_body_observation):
 
 
 # combined feedback fun
+# combine measured observations with possible technique implications.
 def buildTechniqueFeedback(movement):
     foot_observation = identifyFootMovementObservation(movement)
     upper_body_observation = identifyUpperBodyObservation(movement)
@@ -174,6 +180,7 @@ def buildTechniqueFeedback(movement):
     }
 
 # save the feedback inside phase03
+# save technique feedback records for later use.
 def saveTechniqueFeedback(feedback_records, output_path):
     output = {
         "total_movements": len(feedback_records),
@@ -187,6 +194,7 @@ def saveTechniqueFeedback(feedback_records, output_path):
 
 # we need to distinguish sufficiently between different climbing techniques
 # make our suggestions depend on verified movement type
+# select suggestions based on the detected movement category.
 def generateMovementSpecificFeedback(movement):
     movement_type = movement.get("movement_type")
 
@@ -247,6 +255,7 @@ def generateMovementSpecificFeedback(movement):
 # upper_body feedback gives us upper body suggestion
 # this func brings those res together into one dictionary
 # can be used later on to export or display
+# merge movement-specific and upper-body suggestions.
 def generateCombinedCoachingFeedback(movement):
     movement_feedback = generateMovementSpecificFeedback(movement)
 
@@ -263,6 +272,7 @@ def generateCombinedCoachingFeedback(movement):
         "upper_body_feedback": upper_body_feedback
     }
 
+# prioritize a coaching focus using movement type and available foot evidence.
 def generateContextualCoachingFocus(movement):
     movement_type = movement.get("movement_type")
 
@@ -316,6 +326,7 @@ def generateContextualCoachingFocus(movement):
         )
     }
 
+# describe the upper-body evidence and its limitations for coaching.
 def generateUpperBodyContext(movement):
     upper_observation = identifyUpperBodyObservation(movement)
 
@@ -351,6 +362,7 @@ def generateUpperBodyContext(movement):
 # coaching_focus (primary area to investigate)
 # upper_body_context --> describes the elbow-hip evidence (if available)
 # recommendations --> contains readable suggestions for the climber
+# assemble the coaching focus, context, and recommendations for a movement.
 def generateUnifiedCoachingRecommendation(movement):
     foot_context = generateContextualCoachingFocus(movement)
     upper_context = generateUpperBodyContext(movement)
@@ -370,6 +382,7 @@ def generateUnifiedCoachingRecommendation(movement):
         "requires_video_review": True
     }
 
+# export the unified coaching recommendations as json.
 def saveUnifiedRecommendations(recommendations, output_path):
     output = {
         "total_movements": len(recommendations),
@@ -380,6 +393,7 @@ def saveUnifiedRecommendations(recommendations, output_path):
         json.dump(output, file, indent=4, ensure_ascii=False)
 
         print(f"Unified recommendations saved to: {output_path}")
+# run the phase03 analysis workflow when this file is executed directly.
 if __name__ == "__main__":
     movements = loadCoordinationAnalyses(COORDINATION_FILE)
 

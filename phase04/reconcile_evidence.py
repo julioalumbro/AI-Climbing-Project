@@ -1,3 +1,4 @@
+# compare measured joint and body movement with visual observations to assess evidence support.
 # used to help determine if observations from gemini are supported by measureable movement data
 
 import json
@@ -5,12 +6,12 @@ from pathlib import Path
 import argparse
 
 # ============================================================
-# 1. FILE PATHS AND VERSION CONFIGURATION
+# 1. file paths and version configuration
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Change to 1 or 2 to select an analysis version.
+# change to 1 or 2 to select an analysis version.
 ANALYSIS_VERSION = 2
 
 if ANALYSIS_VERSION == 1:
@@ -68,6 +69,7 @@ frames = sorted(
     key=lambda record: record["frame"]
 )
 
+# inspect knee-angle measurements for meaningful flexion changes.
 def evaluate_knee_flexion(frames, side):
     """
     Measure knee-angle changes for the specified leg.
@@ -114,7 +116,7 @@ def evaluate_knee_flexion(frames, side):
 
     angle_change = last_angle - first_angle
 
-    threshold = 15.0  # Temporary heuristic
+    threshold = 15.0  # temporary heuristic
 
     if angle_change < -threshold:
         movement = "flexion"
@@ -135,6 +137,7 @@ def evaluate_knee_flexion(frames, side):
     }
 
 
+# compare knee movement claims with available measurements.
 def reconcile_knee_movement(frames):
     """
     Compare Gemini's structured target-knee movement
@@ -187,6 +190,7 @@ def reconcile_knee_movement(frames):
 
 
 
+# summarize hip movement evidence from tracked frames.
 def evaluate_hip_movement(frames):
     """
     Measure horizontal hip displacement and classify
@@ -215,7 +219,7 @@ def evaluate_hip_movement(frames):
 
     displacement = last_hip_x - first_hip_x
 
-    threshold = 0.05  # Temporary normalized-coordinate threshold
+    threshold = 0.05  # temporary normalized-coordinate threshold
 
     if displacement > threshold:
         direction = "image-right"
@@ -237,6 +241,7 @@ def evaluate_hip_movement(frames):
 
 
 
+# check whether measured hip motion supports a directional observation.
 def reconcile_hip_direction(frames):
     """
     Compare Gemini's structured hip direction
@@ -290,6 +295,7 @@ def reconcile_hip_direction(frames):
 
 
 
+# evaluate elbow-angle changes for the requested arm.
 def evaluate_elbow_flexion(frames, side):
     """
     Measure elbow-angle changes for either arm.
@@ -336,7 +342,7 @@ def evaluate_elbow_flexion(frames, side):
 
     angle_change = last_angle - first_angle
 
-    threshold = 15.0  # Temporary heuristic
+    threshold = 15.0  # temporary heuristic
 
     if angle_change < -threshold:
         movement = "flexion"
@@ -357,6 +363,7 @@ def evaluate_elbow_flexion(frames, side):
     }
 
 
+# check an elbow movement observation against joint measurements.
 def reconcile_elbow_movement(frames, side):
     """
     Compare Gemini's structured elbow movement
@@ -411,6 +418,7 @@ def reconcile_elbow_movement(frames, side):
 
 
 
+# compile reconciled movement evidence into a structured report.
 def build_evidence_report(frames):
     """
     Build a structured report containing:
@@ -456,6 +464,7 @@ def build_evidence_report(frames):
 
 
 
+# gather model observations that need measurement reconciliation.
 def collect_visual_observations(frames):
     """
     Collect Gemini's per-frame foothold-contact observations
@@ -479,7 +488,8 @@ def collect_visual_observations(frames):
     return observations
 
 # want to verify that reconciliation logic handles agreement and disagreements
-# between MediaPipe and Gemini
+# between mediapipe and gemini
+# exercise evidence checks on representative frame data.
 def test_reconciliation_logic(frames):
     """
     Test reconciliation using temporary Gemini values.
@@ -594,8 +604,8 @@ for reconciliation in report["reconciliations"]:
     )
     print(f"Reason: {reconciliation['reason']}")
 
-# Legacy reconciliation tests depend on specific MediaPipe measurements.
-# Do not run them automatically on every video.
+# legacy reconciliation tests depend on specific mediapipe measurements.
+# do not run them automatically on every video.
 RUN_LEGACY_TESTS = False
 
 if RUN_LEGACY_TESTS:

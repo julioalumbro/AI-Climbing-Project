@@ -1,4 +1,5 @@
 
+# combine movement measurements and visual analysis into a shared output for downstream coaching.
 import json
 from pathlib import Path
 import argparse
@@ -6,13 +7,13 @@ from gemini_schema import GeminiMovementAnalysis
 
 
 # ============================================================
-# 1. FILE PATHS AND VERSION CONFIGURATION
+# 1. file paths and version configuration
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
 
-# Change this to 1 or 2 to select an analysis version.
+# change this to 1 or 2 to select an analysis version.
 ANALYSIS_VERSION = 2
 
 if ANALYSIS_VERSION == 1:
@@ -69,7 +70,7 @@ print(f"Combined output: {OUTPUT_PATH}")
 
 
 # ============================================================
-# 2. VERIFY INPUT FILES EXIST
+# 2. verify input files exist
 # ============================================================
 
 if not GEMINI_PATH.is_file():
@@ -86,14 +87,14 @@ if not MEDIAPIPE_PATH.is_file():
 
 
 # ============================================================
-# 3. LOAD AND VALIDATE GEMINI ANALYSIS
+# 3. load and validate gemini analysis
 # ============================================================
 
-# Load saved Gemini JSON without making another API request.
+# load saved gemini json without making another api request.
 with open(GEMINI_PATH, "r", encoding="utf-8") as file:
     gemini_data = json.load(file)
 
-# Reconstruct and validate the structured Gemini response.
+# reconstruct and validate the structured gemini response.
 analysis = GeminiMovementAnalysis.model_validate(
     gemini_data["analysis"]
 )
@@ -106,8 +107,8 @@ print(
     f"{[frame.frame for frame in analysis.frames]}"
 )
 
-# Display structured movement classifications.
-# Older analyses may return None for these fields.
+# display structured movement classifications.
+# older analyses may return none for these fields.
 print("\nGemini Structured Movement Classifications:")
 print(
     f"Hip direction: "
@@ -128,13 +129,13 @@ print(
 
 
 # ============================================================
-# 4. LOAD MEDIAPIPE MEASUREMENTS
+# 4. load mediapipe measurements
 # ============================================================
 
 with open(MEDIAPIPE_PATH, "r", encoding="utf-8") as file:
     mediapipe_data = json.load(file)
 
-# Create a lookup table using original video frame numbers.
+# create a lookup table using original video frame numbers.
 frames_by_number = {
     record["frame"]: record
     for record in mediapipe_data["frames"]
@@ -147,7 +148,7 @@ print(
 
 
 # ============================================================
-# 5. COMBINE GEMINI AND MEDIAPIPE DATA
+# 5. combine gemini and mediapipe data
 # ============================================================
 
 combined_records = []
@@ -177,7 +178,7 @@ for observation in analysis.frames:
 
 
 # ============================================================
-# 6. VALIDATE COMBINED RECORDS
+# 6. validate combined records
 # ============================================================
 
 if len(combined_records) != len(analysis.frames):
@@ -186,7 +187,7 @@ if len(combined_records) != len(analysis.frames):
         "with MediaPipe records."
     )
 
-# Ensure chronological order.
+# ensure chronological order.
 combined_records.sort(key=lambda record: record["frame"])
 
 print(
@@ -215,7 +216,7 @@ for record in combined_records:
 
 
 # ============================================================
-# 7. BUILD COMBINED ANALYSIS
+# 7. build combined analysis
 # ============================================================
 
 combined_analysis = {
@@ -228,14 +229,14 @@ combined_analysis = {
     "frame_count": len(combined_records),
     "frames": combined_records,
 
-    # Gemini's natural-language observations.
+    # gemini's natural-language observations.
     "gemini_movement_summary": analysis.movement_summary,
     "gemini_movement_interpretation": (
         analysis.movement_interpretation
     ),
     "gemini_uncertainties": analysis.uncertainties,
 
-    # Gemini's structured movement classifications.
+    # gemini's structured movement classifications.
     "gemini_hip_horizontal_direction": (
         analysis.hip_horizontal_direction
     ),
@@ -252,7 +253,7 @@ combined_analysis = {
 
 
 # ============================================================
-# 8. SAVE COMBINED ANALYSIS
+# 8. save combined analysis
 # ============================================================
 
 with open(OUTPUT_PATH, "w", encoding="utf-8") as file:

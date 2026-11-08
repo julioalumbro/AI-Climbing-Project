@@ -1,5 +1,6 @@
 import math
 
+# track sustained elbow-bend intervals while accounting for missing detections.
 def trackDeepBendDuration(
         elbow_position,
         current_timestamp,
@@ -8,7 +9,7 @@ def trackDeepBendDuration(
         deep_bent_intervals,
         tolerance=0.15
     ):
-    # How long a climber maintains an elbow position
+    # how long a climber maintains an elbow position
     if elbow_position == "Deeply Bent":
         if deep_bent_start is None:
             deep_bent_start = current_timestamp
@@ -52,6 +53,7 @@ def trackDeepBendDuration(
 
 
 # returns a dictionary of the longest duration, total duration, and average duration of a deeply bent elbow
+# handle summarize deep bend intervals for this stage of the analysis.
 def summarizeDeepBendIntervals(deep_bent_intervals):
     longest_duration = 0
     average_duration = 0

@@ -33,6 +33,7 @@ SKELETON_CONNECTIONS = (
 )
 
 
+# handle  visible for this stage of the analysis.
 def _visible(point, threshold=0.5):
     return (
         point is not None
@@ -45,14 +46,17 @@ def _visible(point, threshold=0.5):
     )
 
 
+# handle  pixel for this stage of the analysis.
 def _pixel(point, width, height):
     return (point.x * width, point.y * height)
 
 
+# handle  angle for this stage of the analysis.
 def _angle(a, b, c, width, height):
     return calculateAngle(_pixel(a, width, height), _pixel(b, width, height), _pixel(c, width, height))
 
 
+# handle  draw skeleton for this stage of the analysis.
 def _draw_skeleton(frame, landmarks, width, height):
     for start, end in SKELETON_CONNECTIONS:
         p1, p2 = landmarks[start], landmarks[end]
@@ -67,6 +71,7 @@ def _draw_skeleton(frame, landmarks, width, height):
                    4, (0, 0, 255), -1)
 
 
+# handle  finish interval for this stage of the analysis.
 def _finish_interval(start, missing_start, last_timestamp, intervals):
     if start is None or last_timestamp is None:
         return
@@ -78,7 +83,8 @@ def _finish_interval(start, missing_start, last_timestamp, intervals):
         "status": "interrupted" if missing_start is not None else "video_ended",
     })
 
-# starts FFmpeg as a separate process and preps to receive raw video frames directly from python
+# starts ffmpeg as a separate process and preps to receive raw video frames directly from python
+# handle start ffmpeg writer for this stage of the analysis.
 def start_ffmpeg_writer(output_path, width, height, fps):
     ffmpeg_path = shutil.which("ffmpeg")
 
@@ -106,11 +112,12 @@ def start_ffmpeg_writer(output_path, width, height, fps):
         command,
         stdin=subprocess.PIPE,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL # FFmpegs detailed error msgs wont be captured
+        stderr=subprocess.DEVNULL # ffmpegs detailed error msgs wont be captured
     )
 
 
 
+# handle process climbing video for this stage of the analysis.
 def process_climbing_video(
     video_path: str | Path,
     display_video: bool = False,
@@ -151,7 +158,7 @@ def process_climbing_video(
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        # Inference sampling
+        # inference sampling
         inference_interval = max(1, round(fps / TARGET_INFERENCE_FPS))
         last_landmarks = None
 
@@ -193,7 +200,7 @@ def process_climbing_video(
                 timestamp_ms = int(frame_number * 1000 / fps)
                 last_processed_timestamp = current_timestamp
 
-                # Only run MediaPipe on selected frames
+                # only run mediapipe on selected frames
                 should_infer = frame_number % inference_interval == 0
 
                 result = None
@@ -285,7 +292,7 @@ def process_climbing_video(
                     if writer is not None or display_video:
                         _draw_skeleton(frame, landmarks, width, height)
 
-                # Draw the most recently detected skeleton on skipped frames
+                # draw the most recently detected skeleton on skipped frames
                 if (
                         not should_infer
                         and last_landmarks is not None
@@ -296,7 +303,7 @@ def process_climbing_video(
                 left_foot_vx = left_foot_vy = None
                 right_foot_vx = right_foot_vy = None
                 if should_infer:
-                    # Existing foot velocity and speed calculations
+                    # existing foot velocity and speed calculations
                     (left_foot_vx, left_foot_vy,
                      previous_left_foot_dx, previous_left_foot_dy,
                      previous_left_foot_timestamp) = calculateFootVelocity(
@@ -314,7 +321,7 @@ def process_climbing_video(
                     left_foot_speed = calculateFootSpeed(left_foot_vx, left_foot_vy)
                     right_foot_speed = calculateFootSpeed(right_foot_vx, right_foot_vy)
 
-                # Only update elbow-bend tracking on analyzed frames
+                # only update elbow-bend tracking on analyzed frames
                 if should_infer:
                     left_deep_bent_start, left_missing_start = trackDeepBendDuration(
                         left_elbow_position, current_timestamp,

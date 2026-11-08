@@ -6,6 +6,7 @@ from coaching_evaluation_schema import (
 )
 
 
+# confirm that a correctly structured coaching evaluation passes schema validation.
 def test_valid_coaching_evaluation():
     criterion = {
         "score": 4,
@@ -46,6 +47,7 @@ def test_valid_coaching_evaluation():
     print("Valid coaching evaluation schema test passed!")
 
 
+# confirm that out-of-range scores fail schema validation.
 def test_invalid_evaluation_score():
     criterion = {
         "score": 6,

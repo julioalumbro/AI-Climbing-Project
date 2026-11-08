@@ -7,13 +7,13 @@ from angle_utils import calculateAngle, classifyElbowPosition
 from velocity_utils import calculateFootVelocity, calculateFootSpeed
 from phase02.duration_utils import trackDeepBendDuration, summarizeDeepBendIntervals
 
-# Step 1: Set up MediaPipe classes
+# step 1: set up mediapipe classes
 BaseOptions = mp.tasks.BaseOptions
 PoseLandmarker = mp.tasks.vision.PoseLandmarker
 PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
 VisionRunningMode = mp.tasks.vision.RunningMode
 
-# Step 2: Set up file paths
+# step 2: set up file paths
 BASE_DIR = Path(__file__).resolve().parent
 
 model_path = str(
@@ -24,14 +24,14 @@ model_path = str(
 
 video_path = str(BASE_DIR.parent / "climbingTestTension.mov")
 
-# Step 3: Configure the pose landmarker
+# step 3: configure the pose landmarker
 options = PoseLandmarkerOptions(
     base_options=BaseOptions(model_asset_path=model_path),
     running_mode=VisionRunningMode.VIDEO,
     num_poses=1
 )
 
-# Step 4: Open the video
+# step 4: open the video
 cap = cv2.VideoCapture(video_path)
 
 if not cap.isOpened():
@@ -44,19 +44,19 @@ if fps <= 0:
 
 frame_number = 0
 
-# Store metrics for each processed frame
+# store metrics for each processed frame
 metrics_log = []
 
-# Previous valid hip measurements
+# previous valid hip measurements
 previous_hip_y = None
 previous_hip_timestamp = None
 
-# Previous left foot measurements
+# previous left foot measurements
 previous_left_foot_dx = None
 previous_left_foot_dy = None
 previous_left_foot_timestamp = None
 
-# Previous right foot measurements
+# previous right foot measurements
 previous_right_foot_dx = None
 previous_right_foot_dy = None
 previous_right_foot_timestamp = None
@@ -74,7 +74,7 @@ right_missing_start: float | None = None
 last_processed_timestamp: float | None = None
 
 
-# Step 5: Create the pose landmarker
+# step 5: create the pose landmarker
 with PoseLandmarker.create_from_options(options) as landmarker:
     while cap.isOpened():
         success, frame = cap.read()
@@ -82,27 +82,27 @@ with PoseLandmarker.create_from_options(options) as landmarker:
         if not success:
             break
 
-        # Convert OpenCV BGR image to RGB
+        # convert opencv bgr image to rgb
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # Convert image into MediaPipe format
+        # convert image into mediapipe format
         mp_image = mp.Image(
             image_format=mp.ImageFormat.SRGB,
             data=rgb_frame
         )
 
-        # Calculate timestamps
+        # calculate timestamps
         timestamp_ms = int(frame_number * 1000 / fps)
         current_timestamp = frame_number / fps
         last_processed_timestamp = current_timestamp
 
-        # Detect pose landmarks
+        # detect pose landmarks
         result = landmarker.detect_for_video(
             mp_image,
             timestamp_ms
         )
 
-        # Initialize frame-specific variables
+        # initialize frame-specific variables
         # hips
         hip_tracking_valid = False
         hip_x = None
@@ -123,7 +123,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
         right_deep_bent_duration = None
 
         # legs (ankle, heel, foot index)
-        # Left leg landmarks
+        # left leg landmarks
 
         left_hip: NormalizedLandmark | None = None
         left_knee = None
@@ -131,14 +131,14 @@ with PoseLandmarker.create_from_options(options) as landmarker:
         left_heel = None
         left_foot_index = None
 
-        # Right leg landmarks
+        # right leg landmarks
         right_hip: NormalizedLandmark | None = None
         right_knee = None
         right_ankle = None
         right_heel = None
         right_foot_index = None
 
-        # Knee and ankle coordinates (reset for each frame)
+        # knee and ankle coordinates (reset for each frame)
         left_knee_x: float | int | None = None
         left_knee_y: float | int | None = None
         left_ankle_x: float | int | None = None
@@ -148,57 +148,57 @@ with PoseLandmarker.create_from_options(options) as landmarker:
         right_ankle_x: float | int | None = None
         right_ankle_y: float | int | None = None
 
-        # Lower-body tracking validity
+        # lower-body tracking validity
         left_leg_tracking_valid = False
         right_leg_tracking_valid = False
         left_knee_angle = None
         right_knee_angle = None
 
-        # Lower-body hip angle calculations
+        # lower-body hip angle calculations
         left_hip_angle = None
         right_hip_angle = None
 
-        # Foot positioning relative to hips
+        # foot positioning relative to hips
         left_foot_dx = None
         left_foot_dy = None
 
         right_foot_dx = None
         right_foot_dy = None
 
-        # Foot Velocity calc
+        # foot velocity calc
         left_foot_vx = None
         left_foot_vy = None
         right_foot_vx = None
         right_foot_vy = None
 
 
-        # Step 6: Process pose landmarks
+        # step 6: process pose landmarks
         if result.pose_landmarks:
             landmarks = result.pose_landmarks[0]
 
-            # Retrieve hip landmarks
+            # retrieve hip landmarks
             left_hip = landmarks[23]
             right_hip = landmarks[24]
 
-            # Retrieve left arm landmarks
+            # retrieve left arm landmarks
             left_shoulder = landmarks[11]
             left_elbow = landmarks[13]
             left_wrist = landmarks[15]
 
-            # Retrieve right arm landmarks
+            # retrieve right arm landmarks
             right_shoulder = landmarks[12]
             right_elbow = landmarks[14]
             right_wrist = landmarks[16]
 
-            # Retrieve left and right leg landmarks
-            # Left
+            # retrieve left and right leg landmarks
+            # left
             # hip has already been init
             left_knee = landmarks[25]
             left_ankle = landmarks[27]
             left_heel = landmarks[29]
             left_foot_index = landmarks[31]
 
-            # Right
+            # right
             # hip has already been init
             right_knee = landmarks[26]
             right_ankle = landmarks[28]
@@ -218,7 +218,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                 print(f"Right foot Y: {right_foot.y:.3f}")
 
             # ----------------------------------
-            # Right ARM VISIBILITY AND VALIDATION
+            # right arm visibility and validation
             # ----------------------------------
 
             right_shoulder_visibility = right_shoulder.visibility
@@ -258,7 +258,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                     right_shoulder_x * width,
                     right_shoulder_y * height
                 )
-                # e.g. elbow_point = (650, 240) --> format for calculateAngle()
+                # e.g. elbow_point = (650, 240) --> format for calculateangle()
                 right_elbow_point = (
                     right_elbow_x * width,
                     right_elbow_y * height
@@ -296,7 +296,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                     )
 
             # ----------------------------------
-            # LEFT ARM VISIBILITY AND VALIDATION
+            # left arm visibility and validation
             # ----------------------------------
 
             left_shoulder_visibility = left_shoulder.visibility
@@ -320,7 +320,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                 and left_elbow_visibility >= 0.5
                 and left_wrist_visibility >= 0.5
 
-                # Coordinate checks
+                # coordinate checks
                 and left_shoulder_x is not None
                 and left_shoulder_y is not None
                 and left_elbow_x is not None
@@ -338,7 +338,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                     left_shoulder_x * width,
                     left_shoulder_y * height
                 )
-                # e.g. elbow_point = (650, 240) --> format for calculateAngle()
+                # e.g. elbow_point = (650, 240) --> format for calculateangle()
                 left_elbow_point = (
                     left_elbow_x * width,
                     left_elbow_y * height
@@ -358,7 +358,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                 left_elbow_position = classifyElbowPosition(left_elbow_angle)
 
                     # drawing the left_elbow_angle onto our video
-                    # we have it originally saved in JSON but now we want to display it
+                    # we have it originally saved in json but now we want to display it
                     # rmb movement away from the camera can affect the measurements
                 if left_elbow_angle is not None:
                     cv2.putText(
@@ -379,7 +379,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                     )
 
             # ----------------------------------
-            # HIP VISIBILITY AND VALIDATION
+            # hip visibility and validation
             # ----------------------------------
 
             left_hip_visibility = left_hip.visibility
@@ -395,20 +395,20 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                     and right_hip_visibility >= 0.5
             )
 
-            # Store hip coordinates
+            # store hip coordinates
             left_hip_x = left_hip.x
             left_hip_y = left_hip.y
 
             right_hip_x = right_hip.x
             right_hip_y = right_hip.y
 
-            # Store knee and ankle coordinates
+            # store knee and ankle coordinates
             left_knee_x, left_knee_y = left_knee.x, left_knee.y
             left_ankle_x, left_ankle_y = left_ankle.x, left_ankle.y
             right_knee_x, right_knee_y = right_knee.x, right_knee.y
             right_ankle_x, right_ankle_y = right_ankle.x, right_ankle.y
 
-            # Validate hip tracking
+            # validate hip tracking
             hip_tracking_valid = (
                     left_hip_visible
                     and right_hip_visible
@@ -419,7 +419,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
             )
 
             # ----------------------------------
-            # HIP POSITION AND VELOCITY
+            # hip position and velocity
             # ----------------------------------
 
             if (
@@ -427,11 +427,11 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                 and left_hip_x is not None and left_hip_y is not None
                 and right_hip_x is not None and right_hip_y is not None
             ):
-                # Calculate hip midpoint
+                # calculate hip midpoint
                 hip_x = (left_hip_x + right_hip_x) / 2
                 hip_y = (left_hip_y + right_hip_y) / 2
 
-                # Calculate vertical hip velocity
+                # calculate vertical hip velocity
                 if (
                         previous_hip_y is not None
                         and previous_hip_timestamp is not None
@@ -444,12 +444,12 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                     if hip_delta_t > 0:
                         hip_velocity_y = hip_delta_y / hip_delta_t
 
-                # Update previous valid hip measurements
+                # update previous valid hip measurements
                 previous_hip_y = hip_y
                 previous_hip_timestamp = current_timestamp
 
             # ----------------------------------
-            # Legs + Foot-Hip Positioning
+            # legs + foot-hip positioning
             # ----------------------------------
 
             # all func returns true only if every condition is satisfied
@@ -482,7 +482,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                     right_foot_index
                 ]
             )
-            # Knee angles: explicitly narrow optional coordinate types.
+            # knee angles: explicitly narrow optional coordinate types.
             if (
                 left_leg_tracking_valid
                 and left_hip_x is not None and left_hip_y is not None
@@ -507,7 +507,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                     [right_ankle_x, right_ankle_y]
                 )
 
-            # Hip angles: shoulder -> hip -> knee.
+            # hip angles: shoulder -> hip -> knee.
             if (
                 left_leg_tracking_valid and left_arm_valid
                 and left_shoulder_x is not None and left_shoulder_y is not None
@@ -532,7 +532,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                     [right_knee_x, right_knee_y]
                 )
 
-            # Foot positions relative to the validated hip midpoint.
+            # foot positions relative to the validated hip midpoint.
             if hip_x is not None and hip_y is not None:
                 if (
                     left_leg_tracking_valid
@@ -554,7 +554,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
 
 
             # ----------------------------------
-            # DRAW POSE LANDMARKS
+            # draw pose landmarks
             # ----------------------------------
 
             height, width = frame.shape[:2]
@@ -577,7 +577,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
                     -1
                 )
 
-            # Draw skeleton connections
+            # draw skeleton connections
             connections = [
                 (11, 12),
                 (11, 13), (13, 15),
@@ -671,7 +671,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
             right_deep_bent_intervals
         )
 
-        # Step 7: Save metrics for EVERY processed frame
+        # step 7: save metrics for every processed frame
         metrics_log.append({
             "frame": frame_number,
             "timestamp_seconds": current_timestamp,
@@ -701,7 +701,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
             "left_foot_speed": left_foot_speed,
             "right_foot_speed": right_foot_speed,
         })
-        # Step 8: Display video
+        # step 8: display video
         height, width = frame.shape[:2]
         max_display_width = 1200
         max_display_height = 900
@@ -719,18 +719,18 @@ with PoseLandmarker.create_from_options(options) as landmarker:
             display_frame
         )
 
-        # Press q to exit
+        # press q to exit
         if cv2.waitKey(1) & 0xFF == ord("q"):
             frame_number += 1
             break
 
         frame_number += 1
 
-    # Step 1: Finalize any unfinished deep-bend intervals
-    # This handles videos ending while the climber is still deeply bent
+    # step 1: finalize any unfinished deep-bend intervals
+    # this handles videos ending while the climber is still deeply bent
     # or while elbow tracking is temporarily lost.
 
-    # LEFT ARM
+    # left arm
     if left_deep_bent_start is not None and last_processed_timestamp is not None:
         end = (
             left_missing_start
@@ -748,7 +748,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
         left_deep_bent_start = None
         left_missing_start = None
 
-    # RIGHT ARM
+    # right arm
     if right_deep_bent_start is not None and last_processed_timestamp is not None:
         end = (
             right_missing_start
@@ -766,7 +766,7 @@ with PoseLandmarker.create_from_options(options) as landmarker:
         right_deep_bent_start = None
         right_missing_start = None
 
-    # Step 2: Calculate summary statistics
+    # step 2: calculate summary statistics
     left_summary = summarizeDeepBendIntervals(left_deep_bent_intervals)
     right_summary = summarizeDeepBendIntervals(right_deep_bent_intervals)
 
@@ -782,11 +782,11 @@ with PoseLandmarker.create_from_options(options) as landmarker:
         }
     }
 
-# Step 9: Release resources
+# step 9: release resources
 cap.release()
 cv2.destroyAllWindows()
 
-# Step 10: Export metrics to JSON
+# step 10: export metrics to json
 output_path = BASE_DIR / "metrics_tension.json"
 
 with open(output_path, "w") as f:

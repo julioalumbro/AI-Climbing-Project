@@ -1,13 +1,16 @@
-# create json req containing images I want to analyze and questions I want it to answer
+# connect movement input records with selected frames to construct model requests.
+# create json req containing images i want to analyze and questions i want it to answer
 import json
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
+# read a json file used by the request-building pipeline.
 def loadJSON(file_path):
     with open(file_path, "r") as file:
         return json.load(file)
 
+# assemble the model request from a movement record and its frames.
 def buildVLMRequest(vlm_record, frame_record):
     return {
         "source": vlm_record["source"],
@@ -18,6 +21,7 @@ def buildVLMRequest(vlm_record, frame_record):
         "questions": vlm_record["vlm_questions"],
     }
 # matching function to map vlm records and the correct frames
+# find extracted frames associated with a movement record.
 def findMatchingFrameRecord(vlm_record, frame_records):
     for frame_record in frame_records:
         if (
@@ -34,6 +38,7 @@ def findMatchingFrameRecord(vlm_record, frame_records):
 
 # save file
 # stores reqs and calculates total number of images across all movements
+# save prepared requests for later execution.
 def saveVLMRequests(requests, output_path):
     output_data = {
         "total_requests": len(requests),
@@ -60,7 +65,7 @@ if __name__ == "__main__":
     print("VLM records:", len(vlm_records))
     print("Frame records:", len(frame_records))
 
-    # Test using the first movement
+    # test using the first movement
     request = buildVLMRequest(
         vlm_records[0],
         frame_records[0]

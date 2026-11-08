@@ -1,4 +1,5 @@
 
+# compare analysis output structures to detect changes between processing paths.
 import json
 from pathlib import Path
 
@@ -14,6 +15,7 @@ with open(test_path, "r", encoding="utf-8") as file:
     test = json.load(file)
 
 
+# recursively compare two results and report differing values.
 def find_differences(original, test, path="root"):
     if type(original) is not type(test):
         print(f"{path}: Different types")

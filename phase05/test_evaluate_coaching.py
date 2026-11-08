@@ -7,6 +7,7 @@ from evaluate_coaching import (
 )
 
 
+# exercise supported, unsupported, and conflicting recommendation evidence.
 def test_evidence_alignment():
     """
     Verify that existing evidence references pass and
@@ -48,6 +49,7 @@ def test_evidence_alignment():
 
     print("Evidence alignment evaluation test passed!")
 
+# check reliability handling for the available evidence categories.
 def test_evidence_reliability():
     """
     Verify that supported, contradicted, and unverified
@@ -96,6 +98,7 @@ def test_evidence_reliability():
 
 
 
+# verify whether uncertain observations are communicated appropriately.
 def test_uncertainty_handling():
     evidence = {
         "reconciliations": [
@@ -130,6 +133,7 @@ def test_uncertainty_handling():
     print("Uncertainty handling evaluation test passed!")
 
 
+# check extraction of measurable joint movement directions.
 def test_extract_joint_movement_ground_truth():
     evidence = {
         "evaluations": [
@@ -167,6 +171,7 @@ def test_extract_joint_movement_ground_truth():
     print("Joint movement extraction test passed!")
 
 
+# check matching and contradictory movement descriptions.
 def test_joint_movement_descriptions():
     evidence = {
         "evaluations": [
@@ -212,16 +217,16 @@ def test_joint_movement_descriptions():
         coaching
     )
 
-    # Correct description
+    # correct description
     assert results[0]["description_check_passed"] is True
     assert results[0]["checked_movement_count"] == 1
 
-    # Contradictory description
+    # contradictory description
     assert results[1]["description_check_passed"] is False
     assert len(results[1]["contradictions"]) == 1
     assert results[1]["contradictions"][0]["joint"] == "right elbow"
 
-    # No joint movement description detected
+    # no joint movement description detected
     assert results[2]["checked_movement_count"] == 0
 
     print("Joint movement description test passed!")

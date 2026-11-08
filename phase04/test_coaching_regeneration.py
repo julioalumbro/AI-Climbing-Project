@@ -1,3 +1,4 @@
+# test coaching regeneration, cache integrity, and safe output persistence.
 """Regression tests for Phase04 coaching cache integrity and recovery.
 
 All coaching output files are created inside temporary directories. Calls to
@@ -30,22 +31,23 @@ from generate_evidence_coaching import (
 
 
 
+# verify mock regeneration behavior and expected failure handling.
 def test_mock_regeneration():
     """Verify mocked regeneration archives old coaching, saves the new analysis and matching fingerprints, and produces a valid cache."""
 
-    # Load real evidence, but never modify real coaching files.
+    # load real evidence, but never modify real coaching files.
     evidence = load_evidence_report(EVIDENCE_PATH)
     categorized = categorize_evidence(evidence)
     prompt = build_coaching_prompt(evidence, categorized)
 
-    # Use a temporary directory for all test outputs.
+    # use a temporary directory for all test outputs.
     with tempfile.TemporaryDirectory() as temp_dir:
         test_dir = Path(temp_dir)
 
         coaching_path = test_dir / "coaching_analysis_v2.json"
         metadata_path = test_dir / "coaching_metadata_v2.json"
 
-        # Create an existing cached analysis.
+        # create an existing cached analysis.
         old_analysis = CoachingAnalysis(
             movement_summary="Previous cached analysis",
             recommendations=[],
@@ -58,7 +60,7 @@ def test_mock_regeneration():
             encoding="utf-8"
         )
 
-        # Simulate a new Gemini response.
+        # simulate a new gemini response.
         mock_analysis = CoachingAnalysis(
             movement_summary="New mock coaching analysis",
             recommendations=[],
@@ -66,7 +68,7 @@ def test_mock_regeneration():
             overall_confidence="medium"
         )
 
-        # Patch Gemini so no API request can occur.
+        # patch gemini so no api request can occur.
         with patch(
             "generate_evidence_coaching.generate_coaching_analysis",
             return_value=mock_analysis
@@ -81,7 +83,7 @@ def test_mock_regeneration():
 
         mocked_gemini.assert_called_once_with(prompt)
 
-        # Check that the original analysis was archived.
+        # check that the original analysis was archived.
         archive_path = (
             test_dir
             / "archive"
@@ -97,33 +99,33 @@ def test_mock_regeneration():
 
         assert archived.movement_summary == "Previous cached analysis"
 
-        # Check that the active analysis was replaced.
+        # check that the active analysis was replaced.
         current = CoachingAnalysis.model_validate_json(
             coaching_path.read_text(encoding="utf-8")
         )
 
         assert current.movement_summary == "New mock coaching analysis"
 
-        # Check that the metadata file was created.
+        # check that the metadata file was created.
         assert metadata_path.is_file()
 
         metadata = json.loads(
             metadata_path.read_text(encoding="utf-8")
         )
 
-        # Verify the new analysis fingerprint is stored.
+        # verify the new analysis fingerprint is stored.
         assert "analysis_fingerprint" in metadata
 
         expected_fingerprint = calculate_analysis_fingerprint(current)
 
         assert metadata["analysis_fingerprint"] == expected_fingerprint
 
-        # Verify metadata does not describe the old analysis.
+        # verify metadata does not describe the old analysis.
         old_fingerprint = calculate_analysis_fingerprint(old_analysis)
 
         assert metadata["analysis_fingerprint"] != old_fingerprint
 
-        # Check that the new metadata matches current configuration.
+        # check that the new metadata matches current configuration.
         status = check_coaching_cache(
             evidence,
             prompt,
@@ -144,6 +146,7 @@ def test_mock_regeneration():
 
 
 
+# verify failed regeneration behavior and expected failure handling.
 def test_failed_regeneration():
     """Reject a generated recommendation that cites unsupported evidence without changing the original cache or creating an archive."""
     from coaching_schema import CoachingRecommendation
@@ -172,7 +175,7 @@ def test_failed_regeneration():
 
         original_contents = coaching_path.read_bytes()
 
-        # Simulate a recommendation referencing unsupported evidence.
+        # simulate a recommendation referencing unsupported evidence.
         invalid_analysis = CoachingAnalysis(
             movement_summary="Invalid coaching analysis",
             recommendations=[
@@ -211,13 +214,13 @@ def test_failed_regeneration():
 
         mocked_gemini.assert_called_once_with(prompt)
 
-        # Original coaching must remain unchanged.
+        # original coaching must remain unchanged.
         assert coaching_path.read_bytes() == original_contents
 
-        # Failed regeneration must not create an archive.
+        # failed regeneration must not create an archive.
         assert not (test_dir / "archive").exists()
 
-        # Failed regeneration must not create metadata.
+        # failed regeneration must not create metadata.
         assert not metadata_path.exists()
 
         print("\nFailed regeneration handled correctly!")
@@ -226,6 +229,7 @@ def test_failed_regeneration():
         print("No new metadata written.")
         print("Gemini API calls: 0")
 
+# verify atomic json write behavior and expected failure handling.
 def test_atomic_json_write():
     """Verify atomic_write_json creates a JSON file and replaces its contents on a subsequent successful write."""
 
@@ -255,6 +259,7 @@ def test_atomic_json_write():
 
         print("\nAtomic JSON write test passed!")
 
+# verify atomic write failure behavior and expected failure handling.
 def test_atomic_write_failure():
     """Ensure JSON serialization errors preserve the destination bytes and clean up temporary files."""
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -269,7 +274,7 @@ def test_atomic_write_failure():
 
         original_contents = output_path.read_bytes()
 
-        # A set cannot be serialized to JSON by default.
+        # a set cannot be serialized to json by default.
         invalid_data = {
             "version": 2,
             "unsupported_value": {1, 2, 3}
@@ -284,10 +289,10 @@ def test_atomic_write_failure():
                 "Invalid JSON was incorrectly accepted."
             )
 
-        # The original file must remain unchanged.
+        # the original file must remain unchanged.
         assert output_path.read_bytes() == original_contents
 
-        # Temporary files should be cleaned up.
+        # temporary files should be cleaned up.
         assert not list(Path(temp_dir).glob("*.tmp"))
 
         print("Original JSON preserved.")
@@ -295,6 +300,7 @@ def test_atomic_write_failure():
         print("Atomic write failure test passed!")
 
 
+# verify metadata write failure behavior and expected failure handling.
 def test_metadata_write_failure():
     """Simulate metadata-save failure after coaching is written; verify archived originals are restored and the error propagates."""
     evidence = load_evidence_report(EVIDENCE_PATH)
@@ -307,7 +313,7 @@ def test_metadata_write_failure():
         coaching_path = test_dir / "coaching_analysis_v2.json"
         metadata_path = test_dir / "coaching_metadata_v2.json"
 
-        # Create an existing coaching analysis.
+        # create an existing coaching analysis.
         old_analysis = CoachingAnalysis(
             movement_summary="Original coaching analysis",
             recommendations=[],
@@ -320,7 +326,7 @@ def test_metadata_write_failure():
             encoding="utf-8"
         )
 
-        # Create matching metadata for the original analysis.
+        # create matching metadata for the original analysis.
         save_coaching_metadata(
             evidence,
             prompt,
@@ -331,7 +337,7 @@ def test_metadata_write_failure():
         original_coaching = coaching_path.read_bytes()
         original_metadata = metadata_path.read_bytes()
 
-        # Simulate a new Gemini response.
+        # simulate a new gemini response.
         new_analysis = CoachingAnalysis(
             movement_summary="New coaching analysis",
             recommendations=[],
@@ -339,7 +345,7 @@ def test_metadata_write_failure():
             overall_confidence="medium"
         )
 
-        # Simulate a failure specifically during metadata saving.
+        # simulate a failure specifically during metadata saving.
         with patch(
             "generate_evidence_coaching.generate_coaching_analysis",
             return_value=new_analysis
@@ -365,7 +371,7 @@ def test_metadata_write_failure():
 
         mocked_gemini.assert_called_once_with(prompt)
 
-        # Confirm that both original files were archived.
+        # confirm that both original files were archived.
         archive_dir = test_dir / "archive" / "version_1"
 
         assert (
@@ -376,9 +382,9 @@ def test_metadata_write_failure():
             archive_dir / "coaching_metadata_v2.json"
         ).read_bytes() == original_metadata
 
-        # Regeneration wrote new coaching before the metadata save failed.
+        # regeneration wrote new coaching before the metadata save failed.
 
-        # Verify both original files were restored after failure.
+        # verify both original files were restored after failure.
         assert json.loads(
             coaching_path.read_text(encoding="utf-8")
         ) == json.loads(
@@ -396,6 +402,7 @@ def test_metadata_write_failure():
         print("Original coaching and metadata restored successfully.")
         print("Gemini API calls: 0")
 
+# verify coaching write failure behavior and expected failure handling.
 def test_coaching_write_failure():
     """Simulate coaching-save failure; verify rollback restores both files and metadata saving is never attempted."""
     evidence = load_evidence_report(EVIDENCE_PATH)
@@ -408,7 +415,7 @@ def test_coaching_write_failure():
         coaching_path = test_dir / "coaching_analysis_v2.json"
         metadata_path = test_dir / "coaching_metadata_v2.json"
 
-        # Create an existing coaching analysis.
+        # create an existing coaching analysis.
         old_analysis = CoachingAnalysis(
             movement_summary="Original coaching analysis",
             recommendations=[],
@@ -426,7 +433,7 @@ def test_coaching_write_failure():
         original_coaching = coaching_path.read_bytes()
         original_metadata = metadata_path.read_bytes()
 
-        # Simulate a new Gemini response.
+        # simulate a new gemini response.
         new_analysis = CoachingAnalysis(
             movement_summary="New coaching analysis",
             recommendations=[],
@@ -434,7 +441,7 @@ def test_coaching_write_failure():
             overall_confidence="medium"
         )
 
-        # Simulate failure during coaching analysis saving.
+        # simulate failure during coaching analysis saving.
         with patch(
                 "generate_evidence_coaching.generate_coaching_analysis",
                 return_value=new_analysis
@@ -461,13 +468,13 @@ def test_coaching_write_failure():
                     "Coaching write failure was not detected."
                 )
 
-        # Verify Gemini was mocked.
+        # verify gemini was mocked.
         mocked_gemini.assert_called_once_with(prompt)
 
-        # Metadata saving should never be attempted.
+        # metadata saving should never be attempted.
         mocked_metadata_save.assert_not_called()
 
-        # Verify both original files were restored.
+        # verify both original files were restored.
         assert json.loads(
             coaching_path.read_text(encoding="utf-8")
         ) == json.loads(original_coaching.decode("utf-8"))
@@ -476,7 +483,7 @@ def test_coaching_write_failure():
             metadata_path.read_text(encoding="utf-8")
         ) == json.loads(original_metadata.decode("utf-8"))
 
-        # Verify the archive contains the original files.
+        # verify the archive contains the original files.
         archive_dir = test_dir / "archive" / "version_1"
 
         assert (
@@ -494,6 +501,7 @@ def test_coaching_write_failure():
         print("Gemini API calls: 0")
 
 
+# verify analysis fingerprint behavior and expected failure handling.
 def test_analysis_fingerprint():
     """Confirm identical analyses hash identically, changed analyses hash differently, and the SHA-256 digest is 64 hex characters."""
     analysis_a = CoachingAnalysis(
@@ -532,6 +540,7 @@ def test_analysis_fingerprint():
 
 
 
+# verify analysis fingerprint mismatch behavior and expected failure handling.
 def test_analysis_fingerprint_mismatch():
     """Check the low-level cache validator rejects coaching modified without a corresponding metadata fingerprint update."""
 
@@ -552,7 +561,7 @@ def test_analysis_fingerprint_mismatch():
             overall_confidence="medium"
         )
 
-        # Save a matching coaching analysis and metadata pair.
+        # save a matching coaching analysis and metadata pair.
         save_coaching_analysis(original_analysis, coaching_path)
 
         save_coaching_metadata(
@@ -562,7 +571,7 @@ def test_analysis_fingerprint_mismatch():
             original_analysis
         )
 
-        # Initially, both fingerprints should match.
+        # initially, both fingerprints should match.
         initial_status = check_coaching_cache(
             evidence,
             prompt,
@@ -572,7 +581,7 @@ def test_analysis_fingerprint_mismatch():
 
         assert initial_status == "valid"
 
-        # Simulate an interrupted regeneration:
+        # simulate an interrupted regeneration:
         # coaching changes, but metadata remains unchanged.
         modified_analysis = CoachingAnalysis(
             movement_summary="Modified coaching analysis",
@@ -583,7 +592,7 @@ def test_analysis_fingerprint_mismatch():
 
         save_coaching_analysis(modified_analysis, coaching_path)
 
-        # The cache should now detect the mismatch.
+        # the cache should now detect the mismatch.
         modified_status = check_coaching_cache(
             evidence,
             prompt,
@@ -600,6 +609,7 @@ def test_analysis_fingerprint_mismatch():
 
 
 
+# verify reject mismatched coaching cache behavior and expected failure handling.
 def test_reject_mismatched_coaching_cache():
     """Check higher-level cache status rejects mismatched coaching and the loader neither returns it nor invokes Gemini."""
     from generate_evidence_coaching import (
@@ -617,7 +627,7 @@ def test_reject_mismatched_coaching_cache():
         coaching_path = test_dir / "coaching_analysis_v2.json"
         metadata_path = test_dir / "coaching_metadata_v2.json"
 
-        # Create a valid coaching analysis.
+        # create a valid coaching analysis.
         original_analysis = CoachingAnalysis(
             movement_summary="Original coaching analysis",
             recommendations=[],
@@ -625,7 +635,7 @@ def test_reject_mismatched_coaching_cache():
             overall_confidence="medium"
         )
 
-        # Save matching coaching and metadata.
+        # save matching coaching and metadata.
         save_coaching_analysis(original_analysis, coaching_path)
 
         save_coaching_metadata(
@@ -635,7 +645,7 @@ def test_reject_mismatched_coaching_cache():
             original_analysis
         )
 
-        # Verify the higher-level cache initially accepts it.
+        # verify the higher-level cache initially accepts it.
         initial_status = get_cached_analysis_status(
             evidence,
             categorized,
@@ -646,7 +656,7 @@ def test_reject_mismatched_coaching_cache():
 
         assert initial_status == "verified"
 
-        # Simulate an interrupted regeneration.
+        # simulate an interrupted regeneration.
         modified_analysis = CoachingAnalysis(
             movement_summary="Modified coaching analysis",
             recommendations=[],
@@ -654,7 +664,7 @@ def test_reject_mismatched_coaching_cache():
             overall_confidence="medium"
         )
 
-        # Replace coaching without updating metadata.
+        # replace coaching without updating metadata.
         save_coaching_analysis(modified_analysis, coaching_path)
 
         invalid_status = get_cached_analysis_status(
@@ -678,7 +688,7 @@ def test_reject_mismatched_coaching_cache():
         assert raw_cache_status == "invalid"
         assert invalid_status == "invalid"
 
-        # Verify the loading function refuses the invalid cache.
+        # verify the loading function refuses the invalid cache.
         with patch(
             "generate_evidence_coaching.generate_coaching_analysis"
         ) as mocked_gemini:
@@ -691,10 +701,10 @@ def test_reject_mismatched_coaching_cache():
                 metadata_path
             )
 
-        # Invalid cache must not be returned.
+        # invalid cache must not be returned.
         assert result is None
 
-        # Loading must not trigger Gemini automatically.
+        # loading must not trigger gemini automatically.
         mocked_gemini.assert_not_called()
 
         print("\nMismatched coaching cache rejection test passed!")
@@ -704,6 +714,7 @@ def test_reject_mismatched_coaching_cache():
         print("Gemini API calls: 0")
 
 
+# verify legacy metadata behavior and expected failure handling.
 def test_legacy_metadata():
     """Check metadata lacking an analysis fingerprint remains locally validated but unverified and cannot be auto-loaded."""
     from generate_evidence_coaching import (
@@ -730,7 +741,7 @@ def test_legacy_metadata():
 
         save_coaching_analysis(analysis, coaching_path)
 
-        # Simulate metadata created before analysis fingerprints existed.
+        # simulate metadata created before analysis fingerprints existed.
         legacy_metadata = {
             "evidence_fingerprint": calculate_evidence_fingerprint(evidence),
             "coaching_fingerprint": calculate_coaching_fingerprint(
@@ -769,6 +780,7 @@ def test_legacy_metadata():
         print("Gemini API calls: 0")
 
 # simulates the on-disk state left by an interrupted regeneration
+# verify interrupted regeneration recovery behavior and expected failure handling.
 def test_interrupted_regeneration_recovery():
     """Simulate a crash between coaching and metadata writes, detect the mismatch, then restore the verified archive."""
     from generate_evidence_coaching import (
@@ -787,7 +799,7 @@ def test_interrupted_regeneration_recovery():
         coaching_path = test_dir / "coaching_analysis_v2.json"
         metadata_path = test_dir / "coaching_metadata_v2.json"
 
-        # STEP 1: Create an original verified cache.
+        # step 1: create an original verified cache.
         original_analysis = CoachingAnalysis(
             movement_summary="Original coaching analysis",
             recommendations=[],
@@ -820,7 +832,7 @@ def test_interrupted_regeneration_recovery():
 
         assert initial_status == "verified"
 
-        # STEP 2: Archive the original cache.
+        # step 2: archive the original cache.
         archive_dir = archive_cached_coaching(
             coaching_path,
             metadata_path
@@ -828,8 +840,8 @@ def test_interrupted_regeneration_recovery():
 
         assert archive_dir.is_dir()
 
-        # STEP 3: Simulate interrupted regeneration.
-        # New coaching is written, but metadata is not.
+        # step 3: simulate interrupted regeneration.
+        # new coaching is written, but metadata is not.
         new_analysis = CoachingAnalysis(
             movement_summary="New interrupted coaching analysis",
             recommendations=[],
@@ -839,7 +851,7 @@ def test_interrupted_regeneration_recovery():
 
         save_coaching_analysis(new_analysis, coaching_path)
 
-        # STEP 4: Verify that the cache is now invalid.
+        # step 4: verify that the cache is now invalid.
         interrupted_status = get_cached_analysis_status(
             evidence,
             categorized,
@@ -850,7 +862,7 @@ def test_interrupted_regeneration_recovery():
 
         assert interrupted_status == "invalid"
 
-        # STEP 5: Verify that archived files are intact.
+        # step 5: verify that archived files are intact.
         archived_coaching = json.loads(
             (archive_dir / coaching_path.name).read_text(
                 encoding="utf-8"
@@ -866,14 +878,14 @@ def test_interrupted_regeneration_recovery():
         assert archived_coaching == original_coaching
         assert archived_metadata == original_metadata
 
-        # STEP 6: Restore the original cache.
+        # step 6: restore the original cache.
         restore_cached_coaching(
             archive_dir,
             coaching_path,
             metadata_path
         )
 
-        # STEP 7: Verify the restored contents.
+        # step 7: verify the restored contents.
         restored_coaching = json.loads(
             coaching_path.read_text(encoding="utf-8")
         )
@@ -885,7 +897,7 @@ def test_interrupted_regeneration_recovery():
         assert restored_coaching == original_coaching
         assert restored_metadata == original_metadata
 
-        # STEP 8: Verify the cache is trusted again.
+        # step 8: verify the cache is trusted again.
         restored_status = get_cached_analysis_status(
             evidence,
             categorized,
@@ -904,6 +916,7 @@ def test_interrupted_regeneration_recovery():
         print("Gemini API calls: 0")
 
 
+# verify restore missing archived metadata behavior and expected failure handling.
 def test_restore_missing_archived_metadata():
     """Verify restoring legacy coaching without archived metadata removes any newer active metadata."""
     from generate_evidence_coaching import (
@@ -917,7 +930,7 @@ def test_restore_missing_archived_metadata():
         coaching_path = test_dir / "coaching_analysis_v2.json"
         metadata_path = test_dir / "coaching_metadata_v2.json"
 
-        # Create an older coaching analysis without metadata.
+        # create an older coaching analysis without metadata.
         original_analysis = CoachingAnalysis(
             movement_summary="Legacy coaching analysis",
             recommendations=[],
@@ -929,7 +942,7 @@ def test_restore_missing_archived_metadata():
 
         assert not metadata_path.exists()
 
-        # Archive the coaching analysis.
+        # archive the coaching analysis.
         archive_dir = archive_cached_coaching(
             coaching_path,
             metadata_path
@@ -938,7 +951,7 @@ def test_restore_missing_archived_metadata():
         assert (archive_dir / coaching_path.name).is_file()
         assert not (archive_dir / metadata_path.name).exists()
 
-        # Simulate an interrupted update.
+        # simulate an interrupted update.
         modified_analysis = CoachingAnalysis(
             movement_summary="Modified coaching analysis",
             recommendations=[],
@@ -948,27 +961,27 @@ def test_restore_missing_archived_metadata():
 
         save_coaching_analysis(modified_analysis, coaching_path)
 
-        # Simulate metadata created by the interrupted update.
+        # simulate metadata created by the interrupted update.
         atomic_write_json(
             {"temporary": True},
             metadata_path
         )
 
-        # Restore the original legacy cache.
+        # restore the original legacy cache.
         restore_cached_coaching(
             archive_dir,
             coaching_path,
             metadata_path
         )
 
-        # Verify the original coaching analysis was restored.
+        # verify the original coaching analysis was restored.
         restored = CoachingAnalysis.model_validate_json(
             coaching_path.read_text(encoding="utf-8")
         )
 
         assert restored == original_analysis
 
-        # Since the original cache had no metadata,
+        # since the original cache had no metadata,
         # the temporary metadata should be removed.
         assert not metadata_path.exists()
 
@@ -979,6 +992,7 @@ def test_restore_missing_archived_metadata():
 
 # corrupted archive protection
 
+# verify restore corrupted archive behavior and expected failure handling.
 def test_restore_corrupted_archive():
     """Ensure structurally invalid archived coaching raises a Pydantic validation error before active files change."""
     from generate_evidence_coaching import (
@@ -1002,13 +1016,13 @@ def test_restore_corrupted_archive():
         save_coaching_analysis(original_analysis, coaching_path)
         atomic_write_json({"version": "original"}, metadata_path)
 
-        # Archive the original files.
+        # archive the original files.
         archive_dir = archive_cached_coaching(
             coaching_path,
             metadata_path
         )
 
-        # Simulate a newer active cache.
+        # simulate a newer active cache.
         new_analysis = CoachingAnalysis(
             movement_summary="Current active analysis",
             recommendations=[],
@@ -1019,11 +1033,11 @@ def test_restore_corrupted_archive():
         save_coaching_analysis(new_analysis, coaching_path)
         atomic_write_json({"version": "current"}, metadata_path)
 
-        # Record active files before attempting restoration.
+        # record active files before attempting restoration.
         coaching_before = coaching_path.read_bytes()
         metadata_before = metadata_path.read_bytes()
 
-        # Corrupt the archived coaching structure.
+        # corrupt the archived coaching structure.
         archived_coaching = archive_dir / coaching_path.name
 
         atomic_write_json(
@@ -1031,7 +1045,7 @@ def test_restore_corrupted_archive():
             archived_coaching
         )
 
-        # Restoration must reject the corrupted archive.
+        # restoration must reject the corrupted archive.
         try:
             restore_cached_coaching(
                 archive_dir,
@@ -1045,7 +1059,7 @@ def test_restore_corrupted_archive():
                 "Corrupted archive was incorrectly restored."
             )
 
-        # Neither active file should have changed.
+        # neither active file should have changed.
         assert coaching_path.read_bytes() == coaching_before
         assert metadata_path.read_bytes() == metadata_before
 
@@ -1055,6 +1069,7 @@ def test_restore_corrupted_archive():
         print("Gemini API calls: 0")
 
 
+# verify restore corrupted metadata behavior and expected failure handling.
 def test_restore_corrupted_metadata():
     """Ensure malformed archived metadata raises JSONDecodeError before either active file changes."""
     from generate_evidence_coaching import (
@@ -1068,7 +1083,7 @@ def test_restore_corrupted_metadata():
         coaching_path = test_dir / "coaching_analysis_v2.json"
         metadata_path = test_dir / "coaching_metadata_v2.json"
 
-        # STEP 1: Create an original cache.
+        # step 1: create an original cache.
         original_analysis = CoachingAnalysis(
             movement_summary="Original coaching analysis",
             recommendations=[],
@@ -1079,13 +1094,13 @@ def test_restore_corrupted_metadata():
         save_coaching_analysis(original_analysis, coaching_path)
         atomic_write_json({"version": "original"}, metadata_path)
 
-        # STEP 2: Archive the original files.
+        # step 2: archive the original files.
         archive_dir = archive_cached_coaching(
             coaching_path,
             metadata_path
         )
 
-        # STEP 3: Simulate newer active files.
+        # step 3: simulate newer active files.
         current_analysis = CoachingAnalysis(
             movement_summary="Current coaching analysis",
             recommendations=[],
@@ -1096,11 +1111,11 @@ def test_restore_corrupted_metadata():
         save_coaching_analysis(current_analysis, coaching_path)
         atomic_write_json({"version": "current"}, metadata_path)
 
-        # Record the active files before restoration.
+        # record the active files before restoration.
         coaching_before = coaching_path.read_bytes()
         metadata_before = metadata_path.read_bytes()
 
-        # STEP 4: Corrupt archived metadata with malformed JSON.
+        # step 4: corrupt archived metadata with malformed json.
         archived_metadata = archive_dir / metadata_path.name
 
         archived_metadata.write_text(
@@ -1108,7 +1123,7 @@ def test_restore_corrupted_metadata():
             encoding="utf-8"
         )
 
-        # STEP 5: Attempt restoration.
+        # step 5: attempt restoration.
         try:
             restore_cached_coaching(
                 archive_dir,
@@ -1125,7 +1140,7 @@ def test_restore_corrupted_metadata():
                 "Corrupted archived metadata was incorrectly restored."
             )
 
-        # STEP 6: Verify neither active file changed.
+        # step 6: verify neither active file changed.
         assert coaching_path.read_bytes() == coaching_before
         assert metadata_path.read_bytes() == metadata_before
 

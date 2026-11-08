@@ -1,10 +1,11 @@
 
 import json
-# Three safeguards:
-# 1_ Separating evidence from interpretation
+# three safeguards:
+# 1_ separating evidence from interpretation
 # 2) discouraging unsupported coaching assumptions
 # 3) requiring explanations for every score
 
+# assemble the evaluator instructions, evidence, and coaching output into one prompt.
 def build_gemini_evaluation_prompt(
     evidence_report,
     coaching_analysis

@@ -9,27 +9,27 @@ missing_start = None
 
 # short tracking interruption
 # test_frames = [
-#     ("Deeply Bent", 1.00),
-#     ("Deeply Bent", 1.10),
-#     (None, 1.20),
-#     (None, 1.25),
-#     ("Deeply Bent", 1.30),
-#     ("Deeply Bent", 1.40),
-#     ("Straight", 1.50)
+#     ("deeply bent", 1.00),
+#     ("deeply bent", 1.10),
+#     (none, 1.20),
+#     (none, 1.25),
+#     ("deeply bent", 1.30),
+#     ("deeply bent", 1.40),
+#     ("straight", 1.50)
 # ]
 
 # long tracking interruption
 # test_frames = [
-#      ("Deeply Bent", 1.00),
-#       ("Deeply Bent", 1.10),
-#       (None, 1.20),
-#      (None, 1.30),
-#      (None, 1.40),
-#       ("Deeply Bent", 1.50),
-#       ("Straight", 1.60)
+#      ("deeply bent", 1.00),
+#       ("deeply bent", 1.10),
+#       (none, 1.20),
+#      (none, 1.30),
+#      (none, 1.40),
+#       ("deeply bent", 1.50),
+#       ("straight", 1.60)
 # ]
 
-# edge case- Elbow is alr deeply bent,
+# edge case- elbow is alr deeply bent,
 # mediapipe loses tracking
 # when tracking returns, your elbow is straight
 test_frames = [

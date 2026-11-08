@@ -13,9 +13,10 @@ EVENT_LABELS = {
     ("left", 388, 400): "foot_return",
     ("right", 379, 382): "foot_return",
     ("right", 168, 169): "foot_readjustment",
-    ("right", 431, 433): "foot_return",  # Newly verified
+    ("right", 431, 433): "foot_return",  # newly verified
     ("right", 474, 486): "foot_release"
 }
+# summarize valid foot-speed measurements and tracking coverage across the video.
 def summarizeSpeeds(json_path):
     if not json_path:
         return None
@@ -40,10 +41,10 @@ def summarizeSpeeds(json_path):
 
     print("First Frame:", frames[0])
 
-    # P50 = typical foot speed
-    # P90 = 90% of observed speed are at or below this val
-    # P95 = top 5% of observed speeds
-    # P99 top 1% of observed speeds
+    # p50 = typical foot speed
+    # p90 = 90% of observed speed are at or below this val
+    # p95 = top 5% of observed speeds
+    # p99 top 1% of observed speeds
     left_pctiles = (
         np.percentile(left_speeds, [50, 90, 95, 99])
         if left_speeds else None
@@ -93,6 +94,7 @@ def summarizeSpeeds(json_path):
         )
     }
 
+# identify frames where foot speed exceeds the selected threshold.
 def findHighSpeedFrames(frames, speed_key, threshold):
     high_speed_frames = []
     for index, frame in enumerate(frames):
@@ -106,6 +108,7 @@ def findHighSpeedFrames(frames, speed_key, threshold):
 
     return high_speed_frames
 
+# combine nearby high-speed frames into candidate movement events.
 def groupHighSpeedFrames(high_speed_frames, max_gap = 2):
     if not high_speed_frames:
         return None
@@ -131,6 +134,7 @@ def groupHighSpeedFrames(high_speed_frames, max_gap = 2):
 
     return events
 
+# calculate timing, displacement, and path metrics for each foot movement.
 def summarizeMovementEvents(grouped_events, frames, foot, fps):
     summaries = []
     for event in grouped_events:
@@ -175,6 +179,7 @@ def summarizeMovementEvents(grouped_events, frames, foot, fps):
 
     return summaries
 
+# print per-frame foot measurements for manual event inspection.
 def inspectFootMovement(frames, start_frame, end_frame, foot):
     for index in range(start_frame, end_frame + 1):
         frame = frames[index]
@@ -188,6 +193,7 @@ def inspectFootMovement(frames, start_frame, end_frame, foot):
             "speed": frame.get(f"{foot}_foot_speed")
         })
 
+# measure net foot-position change across the event window.
 def calculateEventDisplacement(frames, start_frame, end_frame, foot):
     if start_frame <= 0:
         return None
@@ -214,6 +220,7 @@ def calculateEventDisplacement(frames, start_frame, end_frame, foot):
         "net displacement": net_displacement
     }
 
+# sum frame-to-frame foot travel within the event window.
 def calculateEventPathLength(frames, start_frame, end_frame, foot):
     total_distance = 0.0
 
@@ -238,6 +245,7 @@ def calculateEventPathLength(frames, start_frame, end_frame, foot):
 
     return total_distance
 
+# compare net displacement with total travel distance.
 def calculatePathEfficiency(net_displacement, path_length):
     if net_displacement is None or path_length is None:
         return None
@@ -252,6 +260,7 @@ def calculatePathEfficiency(net_displacement, path_length):
 # construct a key w/ foot + frame range
 # look that up in event labels, if there is a verified label, assign it,
 # otherwise assign "unknown"
+# attach manually verified movement labels to detected events.
 def labelMovementEvents(events, foot):
     if events is None or foot is None:
         return None
@@ -269,6 +278,7 @@ def labelMovementEvents(events, foot):
 
     return events
 
+# handle group events by type for this stage of the analysis.
 def groupEventsByType(events):
     if events is None:
         return None
@@ -284,6 +294,7 @@ def groupEventsByType(events):
     return grouped
 
 # we want statistics on the type of events
+# handle summarize events by type for this stage of the analysis.
 def summarizeEventsByType(grouped_events):
     summaries = {}
 
@@ -318,6 +329,7 @@ def summarizeEventsByType(grouped_events):
 
     return summaries
 
+# handle classify movement event for this stage of the analysis.
 def classifyMovementEvent(event):
     displacement = event["displacement"]
 
@@ -333,12 +345,14 @@ def classifyMovementEvent(event):
 
     return "small_movement"
 # temp function to find overlapping events
+# handle events overlap for this stage of the analysis.
 def eventsOverlap(event1, event2, max_gap = 0):
     return (
         event1["start_frame"] <= event2["end_frame"] + max_gap
         and event2["start_frame"] <= event1["end_frame"] + max_gap
     )
 # automatic function that finds overlapping events
+# handle find overlapping foot events for this stage of the analysis.
 def findOverlappingFootEvents(left_events, right_events):
     overlapping_events = []
 
@@ -353,6 +367,7 @@ def findOverlappingFootEvents(left_events, right_events):
     return overlapping_events
 # calculates the amount frames in between two events
 # if events overlap then ret 0
+# handle calculate event gap for this stage of the analysis.
 def calculateEventGap(event1, event2):
     if eventsOverlap(event1, event2):
         return 0
@@ -370,6 +385,7 @@ def calculateEventGap(event1, event2):
 # iterate through the sorted events: set the current group start/end frames (boundaries)
 # ge th the gap between the group boundary vs the current event
 # check if the gap is less/equal than/to the fixed max gap (set to 15 here can be changed later)
+# handle group nearby events for this stage of the analysis.
 def groupNearbyEvents(events, max_gap = 15):
     if not events:
         return []
@@ -400,6 +416,7 @@ def groupNearbyEvents(events, max_gap = 15):
     groups.append(current_group)
     return groups
 
+# handle summarize movement group for this stage of the analysis.
 def summarizeMovementGroup(group):
     release_events = []
     return_events = []
@@ -420,7 +437,8 @@ def summarizeMovementGroup(group):
         "return_count": len(return_events),
         "other_count": len(other_events),
     }
-# idea is to grab release and return events. We want to let our model know that releases come before returns
+# idea is to grab release and return events. we want to let our model know that releases come before returns
+# handle identify movement phases for this stage of the analysis.
 def identifyMovementPhases(group):
     # create release and return []
     release_events = []
@@ -448,6 +466,7 @@ def identifyMovementPhases(group):
 # find release events
 # locate returns for the same foot
 # calculate interval using frame numbers + fps
+# handle pair foot release and return for this stage of the analysis.
 def pairFootReleaseAndReturn(group, fps=60):
     pairs = []
 
@@ -496,6 +515,7 @@ def pairFootReleaseAndReturn(group, fps=60):
     return pairs
 
 
+# handle summarize recovery pairs for this stage of the analysis.
 def summarizeRecoveryPairs(pairs):
     if not pairs:
         return None
@@ -513,6 +533,7 @@ def summarizeRecoveryPairs(pairs):
     }
 
 # now were onto creating a classifier for climbing movements
+# handle classify movement direction for this stage of the analysis.
 def classifyMovementDirection(event):
     displacement = event.get("displacement")
 
@@ -530,6 +551,7 @@ def classifyMovementDirection(event):
     return "downward" if dy > 0 else "upward"
 
 # check whether the horizontal displacement changes sign
+# handle detect direction reversal for this stage of the analysis.
 def detectDirectionReversal(release_event, return_event):
     release_displacement = release_event.get("displacement")
     return_displacement = return_event.get("displacement")
@@ -545,6 +567,7 @@ def detectDirectionReversal(release_event, return_event):
 
     return release_dx * return_dx < 0
 
+# handle detect movement cycle for this stage of the analysis.
 def detectMovementCycle(event1, event2, max_gap=30, min_displacement = 0.05):
     if event1["foot"] != event2["foot"]:
         return False
@@ -571,10 +594,11 @@ def detectMovementCycle(event1, event2, max_gap=30, min_displacement = 0.05):
 
     return detectDirectionReversal(event1, event2) is True
 
-# function that automates detectMovementCycle
-# iterates through sorted events and calls detectMovementCucle on each possible event pair
+# function that automates detectmovementcycle
+# iterates through sorted events and calls detectmovementcucle on each possible event pair
 # greedy pairing algorithm --> chooses first eligile partner
 # not necessarily the ebst possible pairing
+# handle find movement cycles for this stage of the analysis.
 def findMovementCycles(events, max_gap=30, min_displacement=0.05):
     cycles = []
 
@@ -614,7 +638,8 @@ def findMovementCycles(events, max_gap=30, min_displacement=0.05):
                 break
     return cycles
 
-# eval function --> returns TP, FP, FN
+# eval function --> returns tp, fp, fn
+# handle evaluate movement cycles for this stage of the analysis.
 def evaluateMovementCycles(predicted_cycles, verified_pairs):
     predicted = {
         (
@@ -648,6 +673,7 @@ def evaluateMovementCycles(predicted_cycles, verified_pairs):
         "false negatives": fn,
     }
 # evaluation metrics (precision, recall/fn, f1)
+# handle calculate evaluation metrics for this stage of the analysis.
 def calculateEvaluationMetrics(evaluation):
     tp = evaluation["true positives"]
     fp = evaluation["false positives"]
@@ -668,6 +694,7 @@ def calculateEvaluationMetrics(evaluation):
     }
 # right now we use two thresholds to calculate movement cycles
 # we wanna test how diff thresholds values affect how accurate our model is
+# handle test movement thresholds for this stage of the analysis.
 def testMovementThresholds(events, verified_pairs):
     gap_values = [10,15,20,30,45]
     displacement_values = [0.03, 0.05, 0.08, 0.10]
@@ -701,6 +728,7 @@ def testMovementThresholds(events, verified_pairs):
     return res
 
 # examines events
+# handle inspect movement event for this stage of the analysis.
 def inspectMovementEvent(event):
     displacement = event["displacement"]
 
@@ -714,8 +742,9 @@ def inspectMovementEvent(event):
     print(f"Net displacement: {displacement['net displacement']:.4f}")
     print(f"Direction: {classifyMovementDirection(event)}")
 
-#  make another mesureable feature. Right now the detector identifies direction reversing movement pairs
+#  make another mesureable feature. right now the detector identifies direction reversing movement pairs
 # not exactly release-return cycles
+# handle calculate movement displacement ratio for this stage of the analysis.
 def calculateMovementDisplacementRatio(event1, event2):
     displacement1 = event1["displacement"]["net displacement"]
     displacement2 = event2["displacement"]["net displacement"]

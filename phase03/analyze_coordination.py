@@ -5,6 +5,7 @@ from collections import defaultdict
 BASE_DIR = Path(__file__).resolve().parent
 FEEDBACK_FILE = BASE_DIR / "movement_feedback.json"
 
+# load previously generated movement feedback from a json file.
 def loadMovementFeedback(filepath):
     with open(filepath, "r", encoding="utf-8") as file:
         data = json.load(file)
@@ -12,6 +13,7 @@ def loadMovementFeedback(filepath):
     return data["feedback"]
 
 # function checks two things: (1) is the elbow flexed? (2) were the hips moving at an upward motion
+# compare elbow flexion with hip movement to describe upper-body coordination.
 def analyzeElbowHipCoordination(movement):
     elbows = movement["observations"]["elbows"]
     hips = movement["observations"]["hips"]
@@ -47,6 +49,7 @@ def analyzeElbowHipCoordination(movement):
 # use default dict list to initialize a key before appending vals
 # python automatically creates an empty list when trying to access a missing key
 # as more videos are analyzed, new classifications can be added automatically
+# group movement records by coordination pattern for comparison.
 def compareCoordinationPatterns(movements):
     comparisons = defaultdict(list)
 
@@ -64,6 +67,7 @@ def compareCoordinationPatterns(movements):
 
     return dict(comparisons)
 # load phase02 movement analyses and match them onto phase03 feedback records
+# collect phase02 movement analysis files for additional measurement context.
 def loadDetailedMovementAnalyses(directory):
     analyses = []
 
@@ -81,6 +85,7 @@ def loadDetailedMovementAnalyses(directory):
     return analyses
 
 # finds all matching movement files between phase02 and phase03
+# match a feedback event to its detailed analysis using its frame boundaries.
 def findMatchingMovement(feedback, detailed_analyses):
 
     feedback_first = feedback["frame_ranges"]["first_event"]
@@ -109,6 +114,7 @@ def findMatchingMovement(feedback, detailed_analyses):
 # determines whether each measurement meets our min coverage requirement
 # calculates speed diffs only when both windows have reliable measurements
 # threshold is subject to change
+# compare foot speed across movement windows only when tracking coverage is sufficient.
 def analyzeFootStability(movement, min_coverage = 80.0):
     stability = movement["foot_stability"]
 
@@ -161,7 +167,8 @@ def analyzeFootStability(movement, min_coverage = 80.0):
         }
     }
 
-# combining Foot Stability and Elbow-Hip Coordination funcitons
+# combining foot stability and elbow-hip coordination funcitons
+# combine elbow-hip coordination and foot stability into one analysis record.
 def buildCoordinationAnalysis(feedback, detailed_analyses):
     matched_movement = findMatchingMovement(
         feedback, detailed_analyses
@@ -184,6 +191,7 @@ def buildCoordinationAnalysis(feedback, detailed_analyses):
         "foot_stability": foot_stability,
     }
 # save coordination analysis results onto json file
+# write coordination analysis records to a json file.
 def saveCoordinationAnalysis(analyses, output_path):
 
     output = {
@@ -196,6 +204,7 @@ def saveCoordinationAnalysis(analyses, output_path):
 
     print(f"\nCoordination analysis saved to: {output_path}")
 
+# run the phase03 analysis workflow when this file is executed directly.
 if __name__ == "__main__":
     movements = loadMovementFeedback(FEEDBACK_FILE)
 

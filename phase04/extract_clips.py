@@ -1,3 +1,4 @@
+# locate relevant movement intervals and export short clips from the source video.
 import cv2
 import json
 from pathlib import Path
@@ -17,13 +18,15 @@ RECOMMENDATIONS_FILE = (
 CLIPS_DIR = BASE_DIR / "clips"
 CLIPS_DIR.mkdir(parents=True, exist_ok=True)
 
+# read saved technique recommendations for clip extraction.
 def loadRecommendations():
     with open(RECOMMENDATIONS_FILE, "r", encoding="utf-8") as file:
         data = json.load(file)
 
     return data["recommendations"]
 
-# use OpenCV's video capture to grab fps, total frames, width, height
+# use opencv's video capture to grab fps, total frames, width, height
+# read video properties needed to calculate frame and time boundaries.
 def inspectVideo(video_path):
     cap = cv2.VideoCapture(str(video_path))
 
@@ -45,7 +48,8 @@ def inspectVideo(video_path):
         "height": height
     }
 # function to add one extra second to the first_event and second_event
-# used to allow VLM to get more context
+# used to allow vlm to get more context
+# convert a movement event into a padded clip interval within video bounds.
 def calculateClipBoundaries(movement, video_info, padding_seconds=1.0):
     fps = video_info["fps"]
     total_frames = video_info["total_frames"]
@@ -79,11 +83,12 @@ def calculateClipBoundaries(movement, video_info, padding_seconds=1.0):
         "duration": (clip_end - clip_start + 1) / fps
     }
 
-# exporting movement clips with OpenCV
+# exporting movement clips with opencv
 # opens climbing video
-# creates an MP4 video writer
+# creates an mp4 video writer
 # goes to the start of the movement clip, writes every frame through til the ending frame inclusive
 # checks whether the expected number of frames was written
+# write the selected movement interval to a separate video file.
 def extractMovementClip(video_path, output_path, boundaries):
     cap = cv2.VideoCapture(str(video_path))
 
@@ -112,7 +117,7 @@ def extractMovementClip(video_path, output_path, boundaries):
     start_frame = boundaries["start_frame"]
     end_frame = boundaries["end_frame"]
 
-    # Jump to the first frame of the clip
+    # jump to the first frame of the clip
     cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
 
     frames_written = 0

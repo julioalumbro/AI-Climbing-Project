@@ -1,4 +1,5 @@
 
+# prepare a smaller video clip for efficient multimodal model input.
 import cv2
 from pathlib import Path
 
@@ -33,7 +34,7 @@ while True:
     if not success:
         break
 
-    # Sample frames while maintaining the original duration
+    # sample frames while maintaining the original duration
     if int(frame_index * target_fps / fps) > int(
         (frame_index - 1) * target_fps / fps
     ):

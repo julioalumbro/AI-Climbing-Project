@@ -4,6 +4,7 @@ from gemini_evaluation_prompt import (
 )
 
 
+# verify that the generated prompt includes evidence, coaching text, and evaluation safeguards.
 def test_gemini_evaluation_prompt():
     evidence = {
         "evaluations": [

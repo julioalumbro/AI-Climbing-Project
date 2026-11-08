@@ -51,11 +51,13 @@ MODEL_NAME = "gemini-3.8-flash"
 EVALUATOR_VERSION = "1"
 
 
+# load a saved json artifact for evaluation.
 def load_json(path):
     with open(path, "r", encoding="utf-8") as file:
         return json.load(file)
 
 
+# run deterministic checks on evidence alignment and coaching language.
 def run_local_evaluations(evidence, coaching):
     """
     Run deterministic coaching evaluation checks.
@@ -105,6 +107,7 @@ def run_local_evaluations(evidence, coaching):
         )
 
 
+# run the model-based quality evaluation with optional cache reuse.
 def run_gemini_evaluation(
     evidence,
     coaching,
@@ -170,6 +173,7 @@ def run_gemini_evaluation(
     return evaluation
 
 
+# display individual evaluation scores and explanations in a readable format.
 def print_detailed_gemini_evaluation(evaluation):
     """
     Print detailed Gemini evaluation results, including
@@ -234,6 +238,7 @@ def print_detailed_gemini_evaluation(evaluation):
     )
 
 
+# coordinate loading inputs, running evaluators, and presenting the results.
 def main():
     parser = argparse.ArgumentParser(
         description="Evaluate AI climbing coaching quality."

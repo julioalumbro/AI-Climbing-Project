@@ -6,6 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent
 TECHNIQUE_FILE = BASE_DIR / "technique_feedback.json"
 
 # open the feedback file
+# read structured technique feedback from disk.
 def loadTechniqueFeedback(filepath):
     with open(filepath, "r", encoding="utf-8") as file:
         data = json.load(file)
@@ -13,6 +14,7 @@ def loadTechniqueFeedback(filepath):
     return data["technique_feedback"]
 
 # generate human rep
+# format one movement's observations and coaching suggestions into readable text.
 def generateMovementReport(movement):
     foot = movement["foot"].capitalize()
     movement_type = movement["movement_type"].replace("_", " ").title()
@@ -41,6 +43,7 @@ def generateMovementReport(movement):
 
     return report
 
+# write formatted movement reports to a text file.
 def saveCoachingReports(movements, output_path):
     with open(output_path, "w", encoding="utf-8") as file:
         file.write("AI CLIMBING COACH - MOVEMENT ANALYSIS REPORT\n")
@@ -56,6 +59,7 @@ def saveCoachingReports(movements, output_path):
     print(f"Coaching reports saved to: {output_path}")
 
 
+# run the phase03 analysis workflow when this file is executed directly.
 if __name__ == "__main__":
     movements = loadTechniqueFeedback(TECHNIQUE_FILE)
 

@@ -1,4 +1,5 @@
 import re
+# check whether coaching recommendations cite claims that are supported by the evidence report.
 def evaluate_evidence_alignment(evidence_report, coaching_analysis):
     """
     Evaluate whether coaching recommendations reference existing
@@ -11,13 +12,13 @@ def evaluate_evidence_alignment(evidence_report, coaching_analysis):
       independent verification.
     """
 
-    # Map reconciliation claims to their statuses.
+    # map reconciliation claims to their statuses.
     evidence_statuses = {
         item["claim"]: item["status"]
         for item in evidence_report.get("reconciliations", [])
     }
 
-    # Include visual observations without overwriting reconciliations.
+    # include visual observations without overwriting reconciliations.
     for item in evidence_report.get("visual_observations", []):
         evidence_statuses.setdefault(
             item["claim"],
@@ -79,6 +80,7 @@ def evaluate_evidence_alignment(evidence_report, coaching_analysis):
     return results
 
 
+# check whether coaching text acknowledges uncertain or conflicting evidence.
 def evaluate_uncertainty_handling(evidence_report, coaching_analysis):
     """
     Check whether recommendations referencing uncertain evidence
@@ -126,6 +128,7 @@ def evaluate_uncertainty_handling(evidence_report, coaching_analysis):
     return results
 
 
+# collect joint movement measurements that can be used to check coaching descriptions.
 def extract_joint_movement_ground_truth(evidence_report):
     """
     Extract joint movement directions from MediaPipe measurements.
@@ -160,6 +163,7 @@ def extract_joint_movement_ground_truth(evidence_report):
 
     return joint_movements
 
+# compare described joint movements with the measured directions where ground truth is available.
 def evaluate_joint_movement_descriptions(
     evidence_report,
     coaching_analysis
@@ -203,12 +207,12 @@ def evaluate_joint_movement_descriptions(
             for alias in aliases:
                 escaped_alias = re.escape(alias)
 
-                # Example: "left elbow flexion"
+                # example: "left elbow flexion"
                 direct_pattern = (
                     rf"\b{escaped_alias}\b\s+{movement_terms}\b"
                 )
 
-                # Example: "flexion in the left arm"
+                # example: "flexion in the left arm"
                 reverse_pattern = (
                     rf"\b{movement_terms}\b\s+"
                     rf"(?:in|of|at)\s+(?:the\s+)?"

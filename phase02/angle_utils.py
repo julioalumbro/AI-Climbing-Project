@@ -1,14 +1,15 @@
 import math
 
+# calculate the angle at the middle landmark using two vectors.
 def calculateAngle(A, B, C):
 
-    # Step 1: Calculate vectors BA and BC
-    # BA = Ax - Bx, Ay - By
+    # step 1: calculate vectors ba and bc
+    # ba = ax - bx, ay - by
     BA = A[0] - B[0], A[1] - B[1]
     BC = C[0] - B[0], C[1] - B[1]
-    # Step 2: Calculate their dot product
+    # step 2: calculate their dot product
     dotProd = (BA[0] * BC[0]) + (BA[1] * BC[1])
-    # Step 3: Calculate their magnitudes
+    # step 3: calculate their magnitudes
     vectMagnitudeBA = math.sqrt(BA[0]**2 + BA[1]**2)
     vectMagnitudeBC = math.sqrt(BC[0]**2 + BC[1]**2)
 
@@ -16,30 +17,31 @@ def calculateAngle(A, B, C):
     if vectMagnitudeBA == 0 or vectMagnitudeBC == 0:
         return None
 
-    # Step 4: Calculate the cosine value
+    # step 4: calculate the cosine value
     cosAngle = dotProd / (vectMagnitudeBA * vectMagnitudeBC)
 
-    # Clamp cosine to the valid range [-1, 1]
+    # clamp cosine to the valid range [-1, 1]
     cosAngle = max(-1, min(1, cosAngle))
 
-    # Calculate the angle in radians
+    # calculate the angle in radians
     angle = math.acos(cosAngle)
 
-    # Step 5: Return the angle in degrees
+    # step 5: return the angle in degrees
     return math.degrees(angle)
 
 if __name__ == "__main__":
     # test cases for common angles
     print(calculateAngle((0, 1), (0, 0), (1, 0)))
-    # Expected: 90.0
+    # expected: 90.0
 
     print(calculateAngle((-1, 0), (0, 0), (1, 0)))
-    # Expected: 180.0
+    # expected: 180.0
 
     print(calculateAngle((1, 0), (0, 0), (1, 1)))
-    # Expected: 45.0
+    # expected: 45.0
 
 # classifies whether an elbow is partially bent, straight, or deeply bet
+# classify elbow posture from its measured joint angle.
 def classifyElbowPosition(angle):
     if angle is None:
         return None

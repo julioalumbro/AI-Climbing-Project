@@ -1,5 +1,6 @@
 import math
 
+# estimate foot velocity from position changes and elapsed time.
 def calculateFootVelocity(
     foot_dx,
     foot_dy,
@@ -37,6 +38,7 @@ def calculateFootVelocity(
     return vx, vy, foot_dx, foot_dy, current_timestamp
 
 
+# combine horizontal and vertical foot velocity into total speed.
 def calculateFootSpeed(vx,vy):
     if vx is None or vy is None:
         return None

@@ -1,3 +1,4 @@
+# inspect recorded movement metrics to support debugging and analysis.
 import json
 from pathlib import Path
 
@@ -6,7 +7,7 @@ PROJECT_ROOT = BASE_DIR.parent
 
 metrics_path = PROJECT_ROOT / "phase02" / "metrics.json"
 
-# I need to inspect here b/c I need to find out if MediaPipe measurements are
+# i need to inspect here b/c i need to find out if mediapipe measurements are
 # stored as:
 # a list of frame records
 # a dict containing a list of frame records
@@ -25,7 +26,7 @@ elif isinstance(data, list):
 
 
 # were checking that frames field is a list of dictionaries --> each dict = one original video frame
-# we can create a lookup dictionary to retrieve MediaPipe measurements
+# we can create a lookup dictionary to retrieve mediapipe measurements
 frames = data["frames"]
 
 print("Frames type:", type(frames).__name__)

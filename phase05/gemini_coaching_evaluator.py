@@ -10,6 +10,7 @@ import os
 import tempfile
 from pathlib import Path
 
+# request a structured quality assessment from gemini using the evidence and coaching output.
 def generate_gemini_coaching_evaluation(
     evidence_report,
     coaching_analysis,
@@ -69,6 +70,7 @@ def generate_gemini_coaching_evaluation(
     return evaluation
 
 
+# hash the evaluation inputs and model settings to identify reusable cached results.
 def calculate_evaluation_fingerprint(evidence_report, coaching_analysis, model_name="gemini-3.8-flash",
                                      evaluator_version="1"):
     """
@@ -94,6 +96,7 @@ def calculate_evaluation_fingerprint(evidence_report, coaching_analysis, model_n
     ).hexdigest()
 
 
+# reuse a stored evaluation only when its fingerprint matches the current inputs.
 def load_cached_evaluation(cache_path, expected_fingerprint):
     """
     Load a previously validated Gemini evaluation.
@@ -122,6 +125,7 @@ def load_cached_evaluation(cache_path, expected_fingerprint):
         return None
 
 
+# persist the evaluation and fingerprint for subsequent runs.
 def save_cached_evaluation(
     cache_path,
     fingerprint,

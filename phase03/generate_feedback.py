@@ -14,7 +14,8 @@ FEATURE_FILE = PROJECT_DIR / 'phase02' / 'movement_features.json'
 # function to save feedback
 # use ensure_ascii = false so deg symbol is stored directly instead of being escaped
 # encoding = utf-8 converts chars into bytes --> ensure_ascii = false tells json.dump to keep
-# non-ASCII characters rather than escaping them
+# non-ascii characters rather than escaping them
+# serialize structured movement observations as json.
 def saveMovementFeedback(feedback_records, output_path):
     output = {
         "total_movements": len(feedback_records),
@@ -26,6 +27,7 @@ def saveMovementFeedback(feedback_records, output_path):
 
     print(f"\nMovement feedback saved to: {output_path}")
 
+# load movement features extracted in the earlier processing phases.
 def loadMovementFeatures(filepath):
     with open(filepath) as file:
         data = json.load(file)
@@ -33,6 +35,7 @@ def loadMovementFeatures(filepath):
     return data["features"]
 
 # uses actual direciton of hip velocity instead of relying soley on the diff between the two avgs
+# summarize movement type and changes in elbow and hip measurements.
 def generateMovementSummary(movement):
     foot = movement["foot"]
     movement_type = movement.get("movement_type")
@@ -110,6 +113,7 @@ def generateMovementSummary(movement):
         )
     return " ".join(summary)
 # function that converts elbow measurements into structured observations
+# translate left and right elbow measurements into descriptive observations.
 def generateElbowObservations(movement):
     observations = []
 
@@ -132,6 +136,7 @@ def generateElbowObservations(movement):
         })
     return observations
 
+# describe changes in hip motion without making a technique judgment.
 def generateHipObservations(movement):
     before = movement.get("hip_velocity_before")
     during = movement.get("hip_velocity_during")
@@ -145,6 +150,7 @@ def generateHipObservations(movement):
             "velocity_change": None
         }
 
+    # convert a numeric hip velocity into a directional label.
     def getDirection(velocity):
         if velocity < 0:
             return "upward"
@@ -170,6 +176,7 @@ def generateHipObservations(movement):
     }
 
 # combination that brings movement summ, elbow obs, amd hip obs together:
+# assemble the movement summary and joint observations into a single record.
 def buildMovementFeedback(movement):
     return {
         "source": movement["source"],
@@ -195,6 +202,7 @@ def buildMovementFeedback(movement):
         }
     }
 
+# run the phase03 analysis workflow when this file is executed directly.
 if __name__ == "__main__":
     movements = loadMovementFeatures(FEATURE_FILE)
 

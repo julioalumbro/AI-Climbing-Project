@@ -29,11 +29,13 @@ CRITERIA = [
 ]
 
 
+# read a saved evaluation artifact for comparison.
 def load_json(path):
     with open(path, "r", encoding="utf-8") as file:
         return json.load(file)
 
 
+# compare baseline and updated evaluation scores to reveal changes in quality.
 def compare_scores(baseline, updated):
     baseline_items = {
         item["recommendation_index"]: item
@@ -81,6 +83,7 @@ def compare_scores(baseline, updated):
         print(new["suggested_improvement"])
 
 
+# load both evaluation versions and display their score differences.
 def main():
     baseline = {
         "coaching": load_json(

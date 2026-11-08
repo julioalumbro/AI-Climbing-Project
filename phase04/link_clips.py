@@ -1,3 +1,4 @@
+# associate extracted movement clips with their corresponding recommendations.
 import json
 from pathlib import Path
 
@@ -15,6 +16,7 @@ CLIPS_DIR = BASE_DIR / "clips"
 
 OUTPUT_FILE = BASE_DIR / "video_coaching_records.json"
 
+# match recommendation events with their extracted video clips.
 def linkClipsToRecommendations():
     with open(RECOMMENDATIONS_FILE, "r", encoding="utf-8") as file:
         data = json.load(file)

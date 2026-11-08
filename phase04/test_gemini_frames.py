@@ -1,3 +1,4 @@
+# experiment with frame-based multimodal analysis and inspect model responses.
 import os
 from pathlib import Path
 import argparse
@@ -90,7 +91,7 @@ FRAME_DIR = (
 
 frame_numbers = args.frames
 
-# these instructions matter bc I want to make sure Gemini and MediaPipe
+# these instructions matter bc i want to make sure gemini and mediapipe
 # evaluat the same movement over the same interval
 prompt = f"""
 Analyze these three chronological frames from an indoor bouldering video.
@@ -218,7 +219,7 @@ if analysis is None:
         "Gemini did not return a valid structured response."
     )
 
-# NEW: Validate Gemini V2 structured classifications
+# new: validate gemini v2 structured classifications
 print("\nGemini V2 Structured Classifications:")
 
 print("Hip direction:", analysis.hip_horizontal_direction)
@@ -246,11 +247,11 @@ if missing_fields:
     )
 
 print("All four structured fields are present!")
-# Continue with your existing validation
-# and JSON-saving code below.
+# continue with your existing validation
+# and json-saving code below.
 
 
-# Verify that Gemini returned the requested frames
+# verify that gemini returned the requested frames
 returned_frames = [frame.frame for frame in analysis.frames]
 
 if returned_frames != frame_numbers:
@@ -260,7 +261,7 @@ if returned_frames != frame_numbers:
         f"Received: {returned_frames}"
     )
 
-# Verify that Gemini analyzed the correct foot
+# verify that gemini analyzed the correct foot
 if analysis.target_foot != args.target_foot:
     raise ValueError(
         f"Incorrect target foot: {analysis.target_foot}"
@@ -276,7 +277,7 @@ print("Structured analysis validation passed!")
 
 print(analysis.model_dump_json(indent=4))
 
-# Save structured Gemini analysis
+# save structured gemini analysis
 output_path = args.output
 
 # meta data dictionary

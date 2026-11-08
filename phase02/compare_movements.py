@@ -13,6 +13,7 @@ if not ANALYSIS_FILES:
         "No movement analysis files found in phase02"
     )
 
+# handle load movement analysis for this stage of the analysis.
 def loadMovementAnalysis(filenames):
     if filenames is None:
         print("No filenames provided")
@@ -31,6 +32,7 @@ def loadMovementAnalysis(filenames):
             })
     return movements
 
+# handle extract movement features for this stage of the analysis.
 def extractMovementFeatures(movement):
     elbow_changes = movement["elbow_changes"]
     hip_movement = movement["hip_movement"]
@@ -72,6 +74,7 @@ def extractMovementFeatures(movement):
         "second_event_end": movement["second_event"]["end_frame"],
     }
 # helper func: only returns a measurement when its tracking coverage meets a min of 80
+# handle get reliable average for this stage of the analysis.
 def getReliableAverage(metrics, key, min_coverage=80):
     if metrics is None:
         return None
@@ -84,6 +87,7 @@ def getReliableAverage(metrics, key, min_coverage=80):
 
     return value
 
+# handle get reliable elbow change for this stage of the analysis.
 def getReliableElbowChange(movement, arm, min_coverage = 80):
     positioning = movement["elbow_positioning"][arm]
     changes = movement["elbow_changes"].get(arm)
@@ -99,6 +103,7 @@ def getReliableElbowChange(movement, arm, min_coverage = 80):
 
     return changes["overall_change"]
 
+# handle validate movement features for this stage of the analysis.
 def validateMovementFeatures(features):
     required_fields = [
         "source",

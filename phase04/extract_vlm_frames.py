@@ -1,3 +1,4 @@
+# select and export representative frames around movement events for visual analysis.
 import cv2
 import json
 from pathlib import Path
@@ -5,6 +6,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
 
+# save a specific video frame for inspection or model input.
 def extractFrame(clip_path, frame_number, output_path):
     cap = cv2.VideoCapture(str(clip_path))
 
@@ -32,6 +34,7 @@ def extractFrame(clip_path, frame_number, output_path):
 
 # used to select start, midpoint, and end of each event
 # now we don't have to hardcode frames
+# choose frames near the event so the model can see movement context.
 def selectEventFrames(vlm_record, context_seconds=0.25):
     frame_ranges = vlm_record["movement"]["frame_ranges"]
     clip_metadata = vlm_record["clip_metadata"]
@@ -65,6 +68,7 @@ def selectEventFrames(vlm_record, context_seconds=0.25):
     return sorted(set(selected_frames))
 
 
+# export the selected frames and record their references.
 def extractSelectedFrames(vlm_record):
     clip_path = PROJECT_ROOT / vlm_record["clip_file"]
 
@@ -105,6 +109,7 @@ def extractSelectedFrames(vlm_record):
     return extracted_frames
 
 
+# persist frame locations and metadata for later processing.
 def saveExtractedFrameReferences(records, output_path):
     output_data = {
         "total_movements": len(records),

@@ -1,3 +1,4 @@
+# assemble movement context and targeted questions for multimodal analysis.
 import json
 import cv2
 from pathlib import Path
@@ -7,6 +8,7 @@ BASE_DIR = Path(__file__).resolve().parent
 RECORDS_FILE = BASE_DIR / "video_coaching_records.json"
 
 
+# load movement records that will be sent for visual analysis.
 def loadVideoCoachingRecords():
     with open(RECORDS_FILE, "r", encoding="utf-8") as file:
         data = json.load(file)
@@ -14,6 +16,7 @@ def loadVideoCoachingRecords():
     return data["records"]
 
 
+# build targeted questions for the movement being reviewed.
 def generateVLMQuestions(record):
     coaching_focus = record["coaching_focus"]
 
@@ -38,6 +41,7 @@ def generateVLMQuestions(record):
 
     return questions
 
+# create a focused prompt for upper-body movement evidence.
 def generateUpperBodyVLMQuestion(record):
     upper_context = record["upper_body_context"]
 
@@ -63,6 +67,7 @@ def generateUpperBodyVLMQuestion(record):
         "to evaluate coordination."
     )
 
+# collect clip context and questions into one model input record.
 def buildVLMInputRecord(record):
     foot_questions = generateVLMQuestions(record)
     upper_body_question = generateUpperBodyVLMQuestion(record)
@@ -95,7 +100,8 @@ def buildVLMInputRecord(record):
     }
 
 
-# save VLM inputs
+# save vlm inputs
+# write prepared multimodal inputs to json.
 def saveVLMInputs(vlm_inputs, output_path):
     output = {
         "total_movements": len(vlm_inputs),
@@ -109,6 +115,7 @@ def saveVLMInputs(vlm_inputs, output_path):
 
 
 # uses original vids fps and detected movement ranges to build clip boundaires
+# derive clip timing and frame information for a movement event.
 def calculateClipMetadata(record, padding_seconds=1.0):
  project_root = BASE_DIR.parent
  video_path = project_root / record["video_file"]

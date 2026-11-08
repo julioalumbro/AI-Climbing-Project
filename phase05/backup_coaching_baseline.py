@@ -23,7 +23,7 @@ BACKUP_DIR = (
     / "left_release_return/frames_332_373"
 )
 
-# Adjust the metadata filename if yours differs.
+# adjust the metadata filename if yours differs.
 FILES_TO_BACKUP = {
     COACHING_DIR / "coaching_analysis_v2.json":
         BACKUP_DIR / "baseline_coaching.json",
@@ -36,12 +36,14 @@ FILES_TO_BACKUP = {
 }
 
 
+# compute a content hash to verify that the backed-up file matches its source.
 def calculate_file_hash(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+# copy the selected coaching artifacts into a baseline directory without overwriting existing snapshots.
 def main():
-    # Verify all source files exist before copying anything.
+    # verify all source files exist before copying anything.
     for source in FILES_TO_BACKUP:
         if not source.is_file():
             raise FileNotFoundError(
@@ -51,7 +53,7 @@ def main():
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
     for source, destination in FILES_TO_BACKUP.items():
-        # Do not overwrite an existing baseline.
+        # do not overwrite an existing baseline.
         if destination.exists():
             if calculate_file_hash(source) != calculate_file_hash(destination):
                 raise FileExistsError(
@@ -60,7 +62,7 @@ def main():
         else:
             shutil.copy2(source, destination)
 
-        # Verify copied contents are identical.
+        # verify copied contents are identical.
         original_hash = calculate_file_hash(source)
         backup_hash = calculate_file_hash(destination)
 

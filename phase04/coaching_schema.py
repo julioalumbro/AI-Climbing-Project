@@ -1,6 +1,8 @@
+# define the structured data models used to validate generated coaching responses.
 from pydantic import BaseModel, Field
 from typing import Literal
 
+# describe a single coaching suggestion and its supporting fields.
 class CoachingRecommendation(BaseModel):
     observation: str = Field(
         description="What was observed in the climber's movement."
@@ -24,6 +26,7 @@ class CoachingRecommendation(BaseModel):
         )
     )
 
+# describe the complete structured coaching response.
 class CoachingAnalysis(BaseModel):
     movement_summary: str = Field(
         description="A concise summary of the analyzed movement."

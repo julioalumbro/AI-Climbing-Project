@@ -7,6 +7,7 @@ from gemini_coaching_evaluator import (
     calculate_evaluation_fingerprint
 )
 
+# validate the evaluator response handling with a mocked model result.
 def test_mock_gemini_evaluation():
     criterion = {
         "score": 4,
@@ -83,6 +84,7 @@ def test_mock_gemini_evaluation():
     print("Mock Gemini coaching evaluation test passed!")
 
 
+# verify that the cache fingerprint reflects evaluation inputs.
 def test_evaluation_fingerprint():
     evidence = {
         "evaluations": [

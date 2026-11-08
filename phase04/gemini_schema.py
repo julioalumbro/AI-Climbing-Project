@@ -1,16 +1,18 @@
+# define structured fields and validation rules for gemini movement observations.
 from pydantic import BaseModel, Field
 from typing import Literal
 
 # how these two classes work together:
-# GeminiMovementAnalysis --> look at each frame using frameObservation
-# --> Movement-level analysis (summary/interpretation/uncertainties)
+# geminimovementanalysis --> look at each frame using frameobservation
+# --> movement-level analysis (summary/interpretation/uncertainties)
 
 # observations and interpretation are separated because interpretations != visible evidence
 # prevents the coaching system from presenting uncertain interpretations as established facts
 
 
-# eventual pipeline: OpenCV --> MediaPipe --> GeminiMovementAnalysis --> Evidence reconciliation --> Coaching Recs
+# eventual pipeline: opencv --> mediapipe --> geminimovementanalysis --> evidence reconciliation --> coaching recs
 # coaching reccs == supported by evidence
+# validate an observation associated with a video frame.
 class FrameObservation(BaseModel):
     frame: int = Field(
         description="Original video frame number"
@@ -51,6 +53,7 @@ class FrameObservation(BaseModel):
     )
 
 
+# validate the structured movement analysis returned by gemini.
 class GeminiMovementAnalysis(BaseModel):
     movement_type: str = Field(
         description=(

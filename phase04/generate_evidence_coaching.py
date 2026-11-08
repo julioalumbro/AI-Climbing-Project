@@ -1,3 +1,4 @@
+# generate coaching recommendations from reconciled evidence while managing validation and cached results.
 # instead of calling gemini again, im building a rule-based coaching layer that reads the evidence report
 # 1st responsibility is to
 """
@@ -31,6 +32,7 @@ COACHING_OUTPUT_PATH = BASE_DIR / "coaching_analysis_v2.json"
 COACHING_METADATA_PATH = BASE_DIR / "coaching_metadata_v2.json"
 
 
+# load the evidence report used to ground coaching recommendations.
 def load_evidence_report(path):
     if not path.is_file():
         raise FileNotFoundError(
@@ -71,8 +73,9 @@ def load_evidence_report(path):
 
     return report
 
-# I want to separate observations into three categories before sending it ot Gemini for coaching reccs
+# i want to separate observations into three categories before sending it ot gemini for coaching reccs
 # supported, contradicted, inconclusive
+# group observations by their measurement support level.
 def categorize_evidence(report):
     categories = {
         "supported": [],
@@ -95,6 +98,7 @@ def categorize_evidence(report):
 
 
 
+# construct the model prompt from movement evidence and support categories.
 def build_coaching_prompt(evidence, categorized):
     evidence_json = json.dumps(
         categorized,
@@ -241,7 +245,8 @@ Return a structured coaching analysis matching the provided schema.
     return prompt
 # rn get_coaching_analysis checks whether a specific coaching analysis exists, it doesn't check
 # the coaching analysis that was generated using the latest evidence report.
-# idea with this function is to use an evidence fingerprint (SHA-256 hash lf the evidence report)
+# idea with this function is to use an evidence fingerprint (sha-256 hash lf the evidence report)
+# hash evidence content to detect changes across runs.
 def calculate_evidence_fingerprint(evidence):
     serialized = json.dumps(
         evidence,
@@ -256,6 +261,7 @@ def calculate_evidence_fingerprint(evidence):
     ).hexdigest()
 
 
+# identify the exact evidence and prompt used for a coaching result.
 def calculate_coaching_fingerprint(evidence, prompt):
     fingerprint_data = {
         "evidence_fingerprint": calculate_evidence_fingerprint(evidence),
@@ -279,8 +285,9 @@ def calculate_coaching_fingerprint(evidence, prompt):
 
 # converts pydantic coaching analysis into a json compatible dict
 # serializes consistently using sorted keys
-# calculates its SHA256 fingerprint
+# calculates its sha256 fingerprint
 # returns 64 char hexadecimal string
+# compute a stable identifier for a generated analysis.
 def calculate_analysis_fingerprint(analysis):
     analysis_data = analysis.model_dump(mode="json")
     serialized = json.dumps(
@@ -298,12 +305,13 @@ def calculate_analysis_fingerprint(analysis):
 # checks different conditions
 # 1) generation configuration fingerprint differs, 2) analysis fingerprint differs
 # 3) analysis fingerprint missing, 4) both fingerprints match
+# reuse saved coaching only when its inputs and metadata still match.
 def check_coaching_cache(evidence, prompt, coaching_path, metadata_path):
-    # Check whether the coaching analysis exists.
+    # check whether the coaching analysis exists.
     if not coaching_path.is_file():
         return "missing"
 
-    # Without metadata, the cache cannot be verified.
+    # without metadata, the cache cannot be verified.
     if not metadata_path.is_file():
         return "unverified"
 
@@ -313,7 +321,7 @@ def check_coaching_cache(evidence, prompt, coaching_path, metadata_path):
     except (OSError, ValueError, TypeError):
         return "unverified"
 
-    # Verify the generation configuration fingerprint.
+    # verify the generation configuration fingerprint.
     stored_coaching_fingerprint = metadata.get("coaching_fingerprint")
 
     if not isinstance(stored_coaching_fingerprint, str):
@@ -327,7 +335,7 @@ def check_coaching_cache(evidence, prompt, coaching_path, metadata_path):
     if stored_coaching_fingerprint != expected_coaching_fingerprint:
         return "outdated"
 
-    # Verify the actual coaching analysis fingerprint.
+    # verify the actual coaching analysis fingerprint.
     stored_analysis_fingerprint = metadata.get("analysis_fingerprint")
 
     if not isinstance(stored_analysis_fingerprint, str):
@@ -354,6 +362,7 @@ def check_coaching_cache(evidence, prompt, coaching_path, metadata_path):
 # calls gemini only when the saved file is missing
 # validates the analysis before using/saving it
 
+# coordinate cached retrieval or regeneration of coaching feedback.
 def get_coaching_analysis(prompt,evidence,categorized,coaching_path,metadata_path):
     status = get_cached_analysis_status(
         evidence,
@@ -374,6 +383,7 @@ def get_coaching_analysis(prompt,evidence,categorized,coaching_path,metadata_pat
 
     return None
 
+# request structured coaching analysis from the model.
 def generate_coaching_analysis(prompt):
     project_root = BASE_DIR.parent
 
@@ -428,6 +438,7 @@ def generate_coaching_analysis(prompt):
     return analysis
 
 
+# check generated coaching against the available evidence categories.
 def validate_coaching_analysis(analysis, categorized):
     supported_claims = {
         record["claim"]
@@ -454,6 +465,7 @@ def validate_coaching_analysis(analysis, categorized):
 # if writing failed before it could finish in the destination file, the file could be incomplete
 # fun creates a temp file within the same directory, close the writing before replacing destination
 # uses os.replace() to replace the file atomically on same filesystem
+# handle atomic write json as part of the analysis pipeline.
 def atomic_write_json(data, output_path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -479,6 +491,7 @@ def atomic_write_json(data, output_path):
             temp_path.unlink(missing_ok=True)
 
 # analysis.model_dump converts pydantic model into json-compatible python dict
+# save coaching analysis for later use.
 def save_coaching_analysis(analysis, output_path):
     # atomic write func handles sserialization, writing to a temp file and replaces the destination
     atomic_write_json(
@@ -491,6 +504,7 @@ def save_coaching_analysis(analysis, output_path):
 
 # reads our saved recommendations json file
 
+# load coaching analysis from its stored representation.
 def load_coaching_analysis(path):
 
     if not path.is_file():
@@ -506,6 +520,7 @@ def load_coaching_analysis(path):
     return analysis
 
 
+# save coaching metadata for later use.
 def save_coaching_metadata(evidence, prompt, metadata_path, analysis):
     metadata = {
         "evidence_fingerprint": calculate_evidence_fingerprint(evidence),
@@ -521,6 +536,7 @@ def save_coaching_metadata(evidence, prompt, metadata_path, analysis):
 
     print(f"Coaching metadata saved to: {metadata_path}")
 
+# handle register existing analysis as part of the analysis pipeline.
 def register_existing_analysis(evidence, categorized, prompt, coaching_path, metadata_path):
     if not coaching_path.is_file():
         raise FileNotFoundError(
@@ -546,12 +562,13 @@ def register_existing_analysis(evidence, categorized, prompt, coaching_path, met
     print("Existing coaching analysis registered successfully!")
 
 # fun that generates fresh reccs when you deliberately request them
-# this function makes a billable gemini API request! --> if validation fails, the newly generated analysis won't
+# this function makes a billable gemini api request! --> if validation fails, the newly generated analysis won't
 # overwrite your saved coaching json
 # workflow: req new analysis -> validate schema + video references ->
 # if validation passes -> archive existing coaching files
 # if validation fails -> stop without modifying.saved coaching
 # save new analysis and metadata
+# handle regenerate coaching analysis as part of the analysis pipeline.
 def regenerate_coaching_analysis(prompt, evidence, categorized, coaching_path, metadata_path):
     print("Requesting a NEW coaching analysis from Gemini... ")
 
@@ -566,7 +583,7 @@ def regenerate_coaching_analysis(prompt, evidence, categorized, coaching_path, m
 
     archive_dir = None
 
-    # Archive the previous analysis before replacing it.
+    # archive the previous analysis before replacing it.
     if coaching_path.is_file():
         print("Existing coaching analysis found. Archiving...")
 
@@ -591,7 +608,7 @@ def regenerate_coaching_analysis(prompt, evidence, categorized, coaching_path, m
                 metadata_path
             )
         else:
-            # No previous cache existed.
+            # no previous cache existed.
             coaching_path.unlink(missing_ok=True)
             metadata_path.unlink(missing_ok=True)
 
@@ -601,6 +618,7 @@ def regenerate_coaching_analysis(prompt, evidence, categorized, coaching_path, m
 
 
 # create backup analysis that preserves existing analysis instead of overwriting it
+# handle backup existing metadata as part of the analysis pipeline.
 def backup_existing_metadata(metadata_path):
     if not metadata_path.is_file():
         return
@@ -616,6 +634,7 @@ def backup_existing_metadata(metadata_path):
     print(f"Metadata backup created: {backup_path}")
 
 
+# handle get event identifier as part of the analysis pipeline.
 def get_event_identifier(evidence):
     frame_numbers = evidence.get("analyzed_frames", [])
 
@@ -638,6 +657,7 @@ def get_event_identifier(evidence):
     return f"frames_{start_frame}_{end_frame}"
 
 # fun to generate video-specific paths
+# handle get video output paths as part of the analysis pipeline.
 def get_video_output_paths(evidence):
     video_name = Path(evidence["video_file"]).stem
     movement_type = evidence["movement_type"]
@@ -660,6 +680,7 @@ def get_video_output_paths(evidence):
 
 # migration function to copy files
 # creates new files, keeps original files intact
+# handle migrate existing coaching files as part of the analysis pipeline.
 def migrate_existing_coaching_files(video_paths):
     video_dir = video_paths["directory"]
 
@@ -692,6 +713,7 @@ def migrate_existing_coaching_files(video_paths):
 
 
 
+# handle inspect cached coaching as part of the analysis pipeline.
 def inspect_cached_coaching(
     evidence,
     categorized,
@@ -744,6 +766,7 @@ def inspect_cached_coaching(
         )
 
 
+# handle get cached analysis status as part of the analysis pipeline.
 def get_cached_analysis_status(
     evidence,
     categorized,
@@ -786,6 +809,7 @@ def get_cached_analysis_status(
     return "outdated"
 
 # safely archive outdated coaching analyses
+# handle archive cached coaching as part of the analysis pipeline.
 def archive_cached_coaching(coaching_path, metadata_path):
     if not coaching_path.is_file():
         raise FileNotFoundError(
@@ -819,7 +843,8 @@ def archive_cached_coaching(coaching_path, metadata_path):
 
 # validates against coaching analysis + reads metadata before overwriting
 # corrupted metadata is detected before restoration
-# restores only strucutrally valid coaching analyses, not just any JSON
+# restores only strucutrally valid coaching analyses, not just any json
+# handle restore cached coaching as part of the analysis pipeline.
 def restore_cached_coaching(archive_dir, coaching_path, metadata_path):
     archived_coaching = archive_dir / coaching_path.name
     archived_metadata = archive_dir / metadata_path.name
@@ -829,14 +854,14 @@ def restore_cached_coaching(archive_dir, coaching_path, metadata_path):
             f"Archived coaching analysis not found: {archived_coaching}"
         )
 
-    # STEP 1: Read and validate archived coaching BEFORE restoring.
+    # step 1: read and validate archived coaching before restoring.
     coaching_data = json.loads(
         archived_coaching.read_text(encoding="utf-8")
     )
 
     validated_analysis = CoachingAnalysis.model_validate(coaching_data)
 
-    # STEP 2: Read archived metadata BEFORE modifying active files.
+    # step 2: read archived metadata before modifying active files.
     metadata_data = None
 
     if archived_metadata.is_file():
@@ -847,13 +872,13 @@ def restore_cached_coaching(archive_dir, coaching_path, metadata_path):
         if not isinstance(metadata_data, dict):
             raise ValueError("Archived metadata must be a JSON object.")
 
-    # STEP 3: Restore coaching only after archive validation succeeds.
+    # step 3: restore coaching only after archive validation succeeds.
     atomic_write_json(
         validated_analysis.model_dump(mode="json"),
         coaching_path
     )
 
-    # STEP 4: Restore metadata or remove it if none existed.
+    # step 4: restore metadata or remove it if none existed.
     if metadata_data is not None:
         atomic_write_json(metadata_data, metadata_path)
     else:
@@ -866,7 +891,7 @@ def restore_cached_coaching(archive_dir, coaching_path, metadata_path):
 # 4 different modes once file runes
 # generate_evidence_coaching.py --> loads verified cached coaching
 # generated_evidence_coaching.py --mode register --> registers an existing analysis
-# generated_evidence_coaching.py --mode regenerate --> generates + saves a new coaching analysis (API req)
+# generated_evidence_coaching.py --mode regenerate --> generates + saves a new coaching analysis (api req)
 # inspect
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -889,20 +914,20 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Step 1: Load and categorize evidence
+    # step 1: load and categorize evidence
     evidence = load_evidence_report(args.evidence)
     categorized = categorize_evidence(evidence)
 
     print("Evidence report loaded successfully!")
     print(f"Video: {evidence['video_file']}")
 
-    # Step 2: Build coaching prompt
+    # step 2: build coaching prompt
     coaching_prompt = build_coaching_prompt(
         evidence,
         categorized
     )
 
-    # Step 3: Determine video-specific paths
+    # step 3: determine video-specific paths
     video_paths = get_video_output_paths(evidence)
     coaching_path = video_paths["coaching"]
     metadata_path = video_paths["metadata"]
@@ -920,7 +945,7 @@ if __name__ == "__main__":
     )
     print(f"Coaching directory: {video_paths['directory']}")
 
-    # Step 4: Execute requested operation
+    # step 4: execute requested operation
     if args.mode == "register":
         register_existing_analysis(
             evidence,
